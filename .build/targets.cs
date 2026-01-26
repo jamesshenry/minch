@@ -80,7 +80,7 @@ app.OnExecuteAsync(async _ =>
             var testResultPath = Directory.CreateDirectory(Path.Combine(root, testResultFolder));
             await RunAsync(
                 "dotnet",
-                $"test --solution {solution} --configuration {configuration} --coverage --coverage-output {Path.Combine(testResultPath.FullName, coverageFileName)} --coverage-output-format xml --ignore-exit-code 8"
+                $"test --treenode-filter /**[TestType!=Integration] --solution {solution} --configuration {configuration} --coverage --coverage-output {Path.Combine(testResultPath.FullName, coverageFileName)} --coverage-output-format xml --ignore-exit-code 8"
             );
         }
     );
