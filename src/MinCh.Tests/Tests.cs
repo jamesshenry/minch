@@ -1,4 +1,4 @@
-﻿using MinCh.Tests.Data;
+using MinCh.Tests.Data;
 
 namespace MinCh.Tests;
 
@@ -7,7 +7,7 @@ public class Tests
     [Test]
     public void Basic()
     {
-        Console.WriteLine("This is a basic test");
+
     }
 
     [Test]
@@ -15,7 +15,7 @@ public class Tests
     [Arguments(2, 3, 5)]
     public async Task DataDrivenArguments(int a, int b, int c)
     {
-        Console.WriteLine("This one can accept arguments from an attribute");
+
 
         var result = a + b;
 
@@ -26,7 +26,7 @@ public class Tests
     [MethodDataSource(nameof(DataSource))]
     public async Task MethodDataSource(int a, int b, int c)
     {
-        Console.WriteLine("This one can accept arguments from a method");
+
 
         var result = a + b;
 
@@ -40,16 +40,16 @@ public class Tests
     [ClassDataSource<DataClass>(Shared = SharedType.PerTestSession)]
     public void ClassDataSource(DataClass dataClass)
     {
-        Console.WriteLine("This test can accept a class, which can also be pre-initialised before being injected in");
 
-        Console.WriteLine("These can also be shared among other tests, or new'd up each time, by using the `Shared` property on the attribute");
+
+
     }
 
     [Test]
     [DataGenerator]
     public async Task CustomDataGenerator(int a, int b, int c)
     {
-        Console.WriteLine("You can even define your own custom data generators");
+
 
         var result = a + b;
 

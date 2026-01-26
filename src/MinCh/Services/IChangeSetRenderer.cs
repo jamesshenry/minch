@@ -5,5 +5,5 @@ namespace MinCh.Services;
 
 public interface IChangeSetRenderer
 {
-    void Render(ChangeSet changeSet);
+    string Render(ChangeSet changeSet);
 }

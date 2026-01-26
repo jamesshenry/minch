@@ -69,7 +69,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_DefaultRun_UsesLastTagToHEAD()
     {
         var result = await RunMinChAsync(null);
@@ -79,7 +79,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_ExplicitFrom_UsesProvidedRef()
     {
         var result = await RunMinChAsync(new[] { "--from", "v1.0.0", "--to", "v2.0.0" });
@@ -89,7 +89,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_TextOutput_FormatsAsText()
     {
         var result = await RunMinChAsync(new[] { "--output", "text" });
@@ -100,7 +100,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_JsonOutput_FormatsAsValidJson()
     {
         var result = await RunMinChAsync(new[] { "--output", "json" });
@@ -120,7 +120,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_InvalidFromRef_ExitsWithError()
     {
         var result = await RunMinChAsync(new[] { "--from", "non-existent-ref" });
@@ -130,7 +130,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_InvalidOutputFormat_ExitsWithError()
     {
         var result = await RunMinChAsync(new[] { "--output", "invalid" });
@@ -140,7 +140,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_DirtyRepoWithoutAllowDirty_ExitsWithError()
     {
         // Make repo dirty
@@ -153,7 +153,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_DirtyRepoWithAllowDirty_Succeeds()
     {
         // Make repo dirty
@@ -166,7 +166,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_NoChangesBetweenRefs_ExitsWithOne()
     {
         // Run with same ref for from and to
@@ -176,7 +176,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_ChangesDetected_ExitsWithZero()
     {
         var result = await RunMinChAsync(new[] { "--from", "v1.0.0", "--to", "v2.0.0" });
@@ -185,7 +185,7 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    [Skip("CLI implementation incomplete")]
+    
     public async Task CLI_HelpFlag_DisplaysUsage()
     {
         var result = await RunMinChAsync(new[] { "--help" });
@@ -197,12 +197,10 @@ public class CLIIntegrationTests
 
     private string GetMinChExecutablePath()
     {
-        var projectRoot = Path.Combine(
-            Path.GetDirectoryName(typeof(CLIIntegrationTests).Assembly.Location)!,
-            ".."
-        );
+        var testAssemblyLocation = Path.GetDirectoryName(typeof(CLIIntegrationTests).Assembly.Location)!;
+        var solutionRoot = Path.GetFullPath(Path.Combine(testAssemblyLocation, "..", "..", "..", ".."));
         var exeName = OperatingSystem.IsWindows() ? "MinCh.exe" : "MinCh";
-        return Path.Combine(projectRoot, "bin", "Debug", "net10.0", exeName);
+        return Path.Combine(solutionRoot, "MinCh", "bin", "Release", "net10.0", exeName);
     }
 
     private async Task<(int ExitCode, string Output, string Error)> RunMinChAsync(string[]? args)

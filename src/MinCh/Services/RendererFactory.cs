@@ -19,22 +19,24 @@ public class RendererFactory
 
 internal class TextRenderer : IChangeSetRenderer
 {
-    public void Render(ChangeSet changeSet)
+    public string Render(ChangeSet changeSet)
     {
-        Console.WriteLine($"Changes from {changeSet.From.Name} to {changeSet.To.Name}");
+        var output = new System.Text.StringBuilder();
+        output.AppendLine($"Changes from {changeSet.From.Name} to {changeSet.To.Name}");
         foreach (var commit in changeSet.Commits)
-            Console.WriteLine($"- {commit.Subject}");
+            output.AppendLine($"- {commit.Subject}");
+        return output.ToString();
     }
 }
 
 internal class JsonRenderer : IChangeSetRenderer
 {
-    public void Render(ChangeSet changeSet)
+    public string Render(ChangeSet changeSet)
     {
         var json = JsonSerializer.Serialize(
             changeSet,
             new JsonSerializerOptions { WriteIndented = true }
         );
-        Console.WriteLine(json);
+        return json;
     }
 }

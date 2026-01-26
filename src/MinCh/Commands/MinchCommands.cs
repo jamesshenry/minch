@@ -32,8 +32,22 @@ public class MinchCommands(
         bool allowDirty = false
     )
     {
-        var changeSet = _builder.Build(from, to, allowDirty);
+        try
+        {
+            var changeSet = _builder.Build(from, to, allowDirty);
 
-        var renderer = _factory.GetRenderer(output);
+            var renderer = _factory.GetRenderer(output);
+            Console.WriteLine(renderer.Render(changeSet));
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            Environment.Exit(1);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"An unexpected error occurred: {ex.Message}");
+            Environment.Exit(2);
+        }
     }
 }
