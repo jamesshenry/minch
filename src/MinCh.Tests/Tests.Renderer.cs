@@ -164,8 +164,8 @@ public class RendererTests
 
         // Empty arrays should be present
         await Assert.That(output).Contains("[]");
-        await Assert.That(output).Contains("\"Commits\": []");
-        await Assert.That(output).Contains("\"Files\": []");
+        await Assert.That(output).Contains("\"commits\": []");
+        await Assert.That(output).Contains("\"files\": []");
     }
 
     [Test]

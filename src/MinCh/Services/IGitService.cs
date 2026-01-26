@@ -10,4 +10,10 @@ public interface IGitService
     IReadOnlyList<string> GetFiles(Ref fromRef, Ref toRef);
     bool IsDirty();
     Ref ResolveRef(string from);
+
+    /// <summary>
+    /// Gets the most recent tag reachable from HEAD using git describe.
+    /// </summary>
+    /// <returns>The tag name, or null if no tags exist.</returns>
+    string? GetLastTag();
 }

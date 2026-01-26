@@ -17,7 +17,17 @@ public class ChangeSetBuilder(IGitService gitService, ILogger<ChangeSetBuilder> 
 
     public ChangeSet Build(string from, string to = "HEAD", bool allowDirty = false)
     {
-        var fromRef = _service.ResolveRef(from);
+        // Handle special "last-tag" keyword
+        var fromRefName = from;
+        if (from.Equals("last-tag", StringComparison.OrdinalIgnoreCase))
+        {
+            fromRefName =
+                _service.GetLastTag()
+                ?? throw new InvalidOperationException("No tags found in repository");
+            _logger.LogDebug($"Resolved 'last-tag' to: {fromRefName}");
+        }
+
+        var fromRef = _service.ResolveRef(fromRefName);
         _logger.LogDebug($"From ref resolved to: {fromRef}");
         var toRef = _service.ResolveRef(to);
         _logger.LogDebug($"To ref resolved to: {toRef}");

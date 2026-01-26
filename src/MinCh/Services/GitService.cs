@@ -80,6 +80,20 @@ public class GitService(ILogger<GitService> logger) : IGitService
         return !string.IsNullOrWhiteSpace(output);
     }
 
+    public string? GetLastTag()
+    {
+        try
+        {
+            // --abbrev=0 returns just the tag name without commit distance
+            var output = RunGit("describe --tags --abbrev=0");
+            return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public IReadOnlyList<Commit> GetCommits(Ref fromRef, Ref toRef)
     {
         var range = $"{fromRef.CommitSha}..{toRef.CommitSha}";

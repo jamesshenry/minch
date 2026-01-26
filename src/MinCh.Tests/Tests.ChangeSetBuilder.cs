@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MinCh.Commands;
 using MinCh.Services;
 
@@ -22,9 +23,7 @@ public class ChangeSetBuilderTests
             .CreateLogger<GitService>();
         _gitService = new GitService(logger);
 
-        var builderLogger = LoggerFactory
-            .Create(builder => builder.AddConsole())
-            .CreateLogger<ChangeSetBuilder>();
+        var builderLogger = NullLogger<ChangeSetBuilder>.Instance;
         _builder = new ChangeSetBuilder(_gitService, builderLogger);
 
         // Clone template repo for isolation (tests modify state)

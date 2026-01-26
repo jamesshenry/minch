@@ -174,6 +174,284 @@ public class IntegrationSyntheticReposTests
         await Assert.That(changeSet.Files).Contains("file2.txt");
     }
 
+    // ============ Last-Tag Resolution Tests ============
+
+    /// <summary>
+    /// last-tag keyword resolves to most recent tag
+    /// </summary>
+    [Test]
+    public async Task LastTag_MultipleTagsExist_ResolvesToMostRecentTag()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        // v2.0.0 is the most recent tag
+        var changeSet = _builder.Build("last-tag", "HEAD");
+
+        await Assert.That(changeSet.From.Name).IsEqualTo("v2.0.0");
+        await Assert.That(changeSet.From.Kind).IsEqualTo(GitRefKind.Tag);
+    }
+
+    /// <summary>
+    /// last-tag in repo with no tags throws
+    /// </summary>
+    [Test]
+    public async Task LastTag_NoTagsExist_ThrowsInvalidOperationException()
+    {
+        await CreateMinimalRepoAsync(); // Minimal repo has no tags
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        await Assert
+            .That(() => _builder.Build("last-tag", "HEAD"))
+            .Throws<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// GetLastTag returns the most recent tag name
+    /// </summary>
+    [Test]
+    public async Task GetLastTag_MultipleTagsExist_ReturnsMostRecentTagName()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var lastTag = _gitService.GetLastTag();
+
+        await Assert.That(lastTag).IsEqualTo("v2.0.0");
+    }
+
+    // ============ Unicode and Special Character Tests ============
+
+    /// <summary>
+    /// Commit messages with Unicode characters are handled correctly
+    /// </summary>
+    [Test]
+    public async Task Unicode_CommitMessageWithEmoji_HandledCorrectly()
+    {
+        await CreateBranchTagRepoAsync();
+        await GlobalHooks.RunGitAsync("tag v2.1.0", _testRepoPath);
+
+        // Add commit with Unicode/emoji in message
+        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "unicode.txt"), "🚀 content");
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"🚀 Add rocket feature\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
+
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var changeSet = _builder.Build("v2.1.0", "v2.2.0");
+
+        await Assert.That(changeSet.CommitCount).IsEqualTo(1);
+        await Assert.That(changeSet.Commits[0].Subject).StartsWith("🚀 Add rocket feature");
+    }
+
+    /// <summary>
+    /// Tags with special characters in names
+    /// </summary>
+    [Test]
+    public async Task SpecialChars_TagWithDots_ResolvesCorrectly()
+    {
+        await CreateMinimalRepoAsync();
+        await GlobalHooks.RunGitAsync("tag release-1.0.0-beta.1", _testRepoPath);
+
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var ref_ = _gitService.ResolveRef("release-1.0.0-beta.1");
+
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
+        await Assert.That(ref_.Name).IsEqualTo("release-1.0.0-beta.1");
+    }
+
+    // ============ Ambiguous Ref Tests ============
+
+    /// <summary>
+    /// When a tag and branch have the same name, tag takes precedence
+    /// </summary>
+    [Test]
+    public async Task AmbiguousRef_TagAndBranchSameName_TagTakesPrecedence()
+    {
+        await CreateMinimalRepoAsync();
+
+        // Create a branch named "release"
+        await GlobalHooks.RunGitAsync("checkout -b release", _testRepoPath);
+        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "branch.txt"), "branch content");
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Branch commit\"", _testRepoPath);
+
+        // Go back to main and create a tag with the same name "release"
+        await GlobalHooks.RunGitAsync("checkout main", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag release", _testRepoPath);
+
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        // ResolveRef("release") should pick the tag (our implementation checks tags first)
+        var ref_ = _gitService.ResolveRef("release");
+
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
+    }
+
+    // ============ Ref Resolution Tests ============
+    // (Tests for GitService.ResolveRef with various ref types)
+
+    /// <summary>
+    /// Explicit tag resolution
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_ExplicitTag_ResolvesToTagCommitSha()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var ref_ = _gitService.ResolveRef("v1.0.0");
+
+        await Assert.That(ref_.Name).IsEqualTo("v1.0.0");
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
+        await Assert.That(ref_.CommitSha.Length).IsEqualTo(40);
+    }
+
+    /// <summary>
+    /// Non-existent tag throws
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_NonExistentTag_ThrowsInvalidOperationException()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        await Assert
+            .That(() => _gitService.ResolveRef("v99.99.99"))
+            .Throws<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// Branch name resolution
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_BranchName_ResolvesToBranchTip()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var ref_ = _gitService.ResolveRef("main");
+
+        await Assert.That(ref_.Name).IsEqualTo("main");
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Branch);
+        await Assert.That(ref_.CommitSha.Length).IsEqualTo(40);
+    }
+
+    /// <summary>
+    /// Non-existent branch throws
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_NonExistentBranch_ThrowsInvalidOperationException()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        await Assert
+            .That(() => _gitService.ResolveRef("not-a-branch"))
+            .Throws<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// HEAD resolution
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_HEAD_ResolvesToCurrentCommit()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var ref_ = _gitService.ResolveRef("HEAD");
+
+        await Assert.That(ref_.Name).IsEqualTo("HEAD");
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Special);
+        await Assert.That(ref_.CommitSha.Length).IsEqualTo(40);
+    }
+
+    /// <summary>
+    /// Full commit SHA resolution
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_FullCommitSha_ResolvesToCommitSha()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var headRef = _gitService.ResolveRef("HEAD");
+        var fullSha = headRef.CommitSha;
+
+        var ref_ = _gitService.ResolveRef(fullSha);
+
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Commit);
+        await Assert.That(ref_.CommitSha).IsEqualTo(fullSha);
+    }
+
+    /// <summary>
+    /// Abbreviated commit SHA resolution
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_AbbreviatedCommitSha_ResolvesToFullSha()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var headRef = _gitService.ResolveRef("HEAD");
+        var abbrevSha = headRef.CommitSha[..10];
+
+        var ref_ = _gitService.ResolveRef(abbrevSha);
+
+        await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Commit);
+        await Assert.That(ref_.CommitSha.Length).IsEqualTo(40);
+        await Assert.That(ref_.CommitSha[..10]).IsEqualTo(abbrevSha);
+    }
+
+    /// <summary>
+    /// Invalid commit SHA throws
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_InvalidCommitSha_ThrowsInvalidOperationException()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        await Assert
+            .That(() => _gitService.ResolveRef("abcdef0123456789"))
+            .Throws<InvalidOperationException>();
+    }
+
+    /// <summary>
+    /// Detached HEAD at tag
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_DetachedHeadAtTag_ResolvesHeadAndTag()
+    {
+        await CreateBranchTagRepoAsync();
+        await GlobalHooks.RunGitAsync("checkout v1.0.0", _testRepoPath);
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var headRef = _gitService.ResolveRef("HEAD");
+        var tagRef = _gitService.ResolveRef("v1.0.0");
+
+        await Assert.That(headRef.Kind).IsEqualTo(GitRefKind.Special);
+        await Assert.That(headRef.CommitSha).IsEqualTo(tagRef.CommitSha);
+    }
+
+    /// <summary>
+    /// Ambiguous ref resolution is consistent
+    /// </summary>
+    [Test]
+    public async Task ResolveRef_SameRefTwice_ReturnsConsistentResult()
+    {
+        await CreateBranchTagRepoAsync();
+        _gitService.SetWorkingDirectory(_testRepoPath);
+
+        var ref1 = _gitService.ResolveRef("v1.0.0");
+        var ref2 = _gitService.ResolveRef("v1.0.0");
+
+        await Assert.That(ref1.CommitSha).IsEqualTo(ref2.CommitSha);
+    }
+
     // ============ Helper Methods ============
 
     private async Task CreateMinimalRepoAsync()
@@ -230,10 +508,10 @@ public class IntegrationSyntheticReposTests
         await GlobalHooks.RunGitAsync("add .", _testRepoPath);
         await GlobalHooks.RunGitAsync("commit -m \"Feature commit\"", _testRepoPath);
 
-        // Switch back to main and merge
+        // Switch back to main and merge (--no-ff forces a merge commit)
         await GlobalHooks.RunGitAsync("checkout main", _testRepoPath);
         await GlobalHooks.RunGitAsync(
-            "merge feature/test -m \"Merge feature branch\"",
+            "merge --no-ff feature/test -m \"Merge feature branch\"",
             _testRepoPath
         );
     }
