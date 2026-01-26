@@ -2,11 +2,12 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
 
-namespace MinCh.Services;
+namespace MinCh.Library.Services;
 
-public class GitService(ILogger<GitService> logger) : IGitService
+public class GitService(ILogger<GitService> logger, string gitExecutablePath = "git") : IGitService
 {
     private string _workingDirectory = Directory.GetCurrentDirectory();
+    private readonly string _gitExecutablePath = gitExecutablePath;
 
     /// <summary>
     /// Sets the working directory for git operations. Used primarily for testing.
@@ -183,7 +184,7 @@ public class GitService(ILogger<GitService> logger) : IGitService
     {
         var psi = new ProcessStartInfo
         {
-            FileName = "git",
+            FileName = _gitExecutablePath,
             Arguments = arguments,
             WorkingDirectory = _workingDirectory,
             RedirectStandardOutput = true,

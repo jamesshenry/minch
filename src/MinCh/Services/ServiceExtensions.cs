@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MinCh.Commands;
 using MinCh.Configuration;
+using MinCh.Library.Services;
 using MinCh.Logging;
 using Serilog;
 using Serilog.Core;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
-using MinCh.Services;
+using MinCh.Library.Services;
 
 namespace MinCh.Commands;
 

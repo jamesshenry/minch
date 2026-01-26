@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MinCh.Commands;
-using MinCh.Services;
+using MinCh.Library.Services;
 
 namespace MinCh.Tests;
 
