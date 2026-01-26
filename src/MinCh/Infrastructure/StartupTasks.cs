@@ -77,7 +77,7 @@ public static class StartupTasks
         }
         else
         {
-            logger?.Information("First run detected. Initializing state.");
+            logger?.Verbose("First run detected. Initializing state.");
         }
 
         if (state.LastRunVersion != currentVersion)

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using MinCh.Commands;
 using MinCh.Library.Git;
 using MinCh.Library.Services;
 
@@ -56,7 +55,7 @@ public class IntegrationSyntheticReposTests
         await CreateMinimalRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var headRef = _gitService.ResolveRef("HEAD");
+        var headRef = await _gitService.ResolveRefAsync("HEAD");
 
         await Assert.That(headRef.Kind).IsEqualTo(GitRefKind.Special);
         await Assert.That(headRef.CommitSha.Length).IsEqualTo(40);
@@ -71,9 +70,9 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var v1Ref = _gitService.ResolveRef("v1.0.0");
-        var v2Ref = _gitService.ResolveRef("v2.0.0");
-        var mainRef = _gitService.ResolveRef("main");
+        var v1Ref = await _gitService.ResolveRefAsync("v1.0.0");
+        var v2Ref = await _gitService.ResolveRefAsync("v2.0.0");
+        var mainRef = await _gitService.ResolveRefAsync("main");
 
         await Assert.That(v1Ref.Kind).IsEqualTo(GitRefKind.Tag);
         await Assert.That(v2Ref.Kind).IsEqualTo(GitRefKind.Tag);
@@ -90,7 +89,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0");
 
         await Assert.That(changeSet.CommitCount).IsGreaterThan(0);
         await Assert.That(changeSet.Commits.Count).IsGreaterThan(0);
@@ -106,7 +105,7 @@ public class IntegrationSyntheticReposTests
         await CreateMergeRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var changeSet = _builder.Build("v1.0.0", "HEAD");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "HEAD");
 
         // Should include commits from both main and feature branch
         await Assert.That(changeSet.CommitCount).IsGreaterThanOrEqualTo(2);
@@ -128,7 +127,7 @@ public class IntegrationSyntheticReposTests
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var isDirty = _gitService.IsDirty();
+        var isDirty = _gitService.IsDirtyAsync();
 
         await Assert.That(isDirty).IsTrue();
     }
@@ -146,8 +145,8 @@ public class IntegrationSyntheticReposTests
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var headRef = _gitService.ResolveRef("HEAD");
-        var tagRef = _gitService.ResolveRef("v1.0.0");
+        var headRef = await _gitService.ResolveRefAsync("HEAD");
+        var tagRef = await _gitService.ResolveRefAsync("v1.0.0");
 
         await Assert.That(headRef.CommitSha).IsEqualTo(tagRef.CommitSha);
     }
@@ -169,7 +168,7 @@ public class IntegrationSyntheticReposTests
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var changeSet = _builder.Build("v2.0.0", "v2.2.0");
+        var changeSet = await _builder.BuildAsync("v2.0.0", "v2.2.0");
 
         await Assert.That(changeSet.Files).Contains("file2.txt");
     }
@@ -186,7 +185,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         // v2.0.0 is the most recent tag
-        var changeSet = _builder.Build("last-tag", "HEAD");
+        var changeSet = await _builder.BuildAsync("last-tag", "HEAD");
 
         await Assert.That(changeSet.From.Name).IsEqualTo("v2.0.0");
         await Assert.That(changeSet.From.Kind).IsEqualTo(GitRefKind.Tag);
@@ -202,7 +201,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         await Assert
-            .That(() => _builder.Build("last-tag", "HEAD"))
+            .That(async () => await _builder.BuildAsync("last-tag", "HEAD"))
             .Throws<InvalidOperationException>();
     }
 
@@ -215,7 +214,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var lastTag = _gitService.GetLastTag();
+        var lastTag = await _gitService.GetLastTagAsync();
 
         await Assert.That(lastTag).IsEqualTo("v2.0.0");
     }
@@ -239,7 +238,7 @@ public class IntegrationSyntheticReposTests
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var changeSet = _builder.Build("v2.1.0", "v2.2.0");
+        var changeSet = await _builder.BuildAsync("v2.1.0", "v2.2.0");
 
         await Assert.That(changeSet.CommitCount).IsEqualTo(1);
         await Assert.That(changeSet.Commits[0].Subject).StartsWith("🚀 Add rocket feature");
@@ -256,7 +255,7 @@ public class IntegrationSyntheticReposTests
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var ref_ = _gitService.ResolveRef("release-1.0.0-beta.1");
+        var ref_ = await _gitService.ResolveRefAsync("release-1.0.0-beta.1");
 
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
         await Assert.That(ref_.Name).IsEqualTo("release-1.0.0-beta.1");
@@ -285,7 +284,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         // ResolveRef("release") should pick the tag (our implementation checks tags first)
-        var ref_ = _gitService.ResolveRef("release");
+        var ref_ = await _gitService.ResolveRefAsync("release");
 
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
     }
@@ -302,7 +301,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var ref_ = _gitService.ResolveRef("v1.0.0");
+        var ref_ = await _gitService.ResolveRefAsync("v1.0.0");
 
         await Assert.That(ref_.Name).IsEqualTo("v1.0.0");
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Tag);
@@ -319,7 +318,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         await Assert
-            .That(() => _gitService.ResolveRef("v99.99.99"))
+            .That(async () => await _gitService.ResolveRefAsync("v99.99.99"))
             .Throws<InvalidOperationException>();
     }
 
@@ -332,7 +331,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var ref_ = _gitService.ResolveRef("main");
+        var ref_ = await _gitService.ResolveRefAsync("main");
 
         await Assert.That(ref_.Name).IsEqualTo("main");
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Branch);
@@ -349,7 +348,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         await Assert
-            .That(() => _gitService.ResolveRef("not-a-branch"))
+            .That(async () => await _gitService.ResolveRefAsync("not-a-branch"))
             .Throws<InvalidOperationException>();
     }
 
@@ -362,7 +361,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var ref_ = _gitService.ResolveRef("HEAD");
+        var ref_ = await _gitService.ResolveRefAsync("HEAD");
 
         await Assert.That(ref_.Name).IsEqualTo("HEAD");
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Special);
@@ -378,10 +377,10 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var headRef = _gitService.ResolveRef("HEAD");
+        var headRef = await _gitService.ResolveRefAsync("HEAD");
         var fullSha = headRef.CommitSha;
 
-        var ref_ = _gitService.ResolveRef(fullSha);
+        var ref_ = await _gitService.ResolveRefAsync(fullSha);
 
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Commit);
         await Assert.That(ref_.CommitSha).IsEqualTo(fullSha);
@@ -396,10 +395,10 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var headRef = _gitService.ResolveRef("HEAD");
+        var headRef = await _gitService.ResolveRefAsync("HEAD");
         var abbrevSha = headRef.CommitSha[..10];
 
-        var ref_ = _gitService.ResolveRef(abbrevSha);
+        var ref_ = await _gitService.ResolveRefAsync(abbrevSha);
 
         await Assert.That(ref_.Kind).IsEqualTo(GitRefKind.Commit);
         await Assert.That(ref_.CommitSha.Length).IsEqualTo(40);
@@ -416,7 +415,7 @@ public class IntegrationSyntheticReposTests
         _gitService.SetWorkingDirectory(_testRepoPath);
 
         await Assert
-            .That(() => _gitService.ResolveRef("abcdef0123456789"))
+            .That(async () => await _gitService.ResolveRefAsync("abcdef0123456789"))
             .Throws<InvalidOperationException>();
     }
 
@@ -430,8 +429,8 @@ public class IntegrationSyntheticReposTests
         await GlobalHooks.RunGitAsync("checkout v1.0.0", _testRepoPath);
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var headRef = _gitService.ResolveRef("HEAD");
-        var tagRef = _gitService.ResolveRef("v1.0.0");
+        var headRef = await _gitService.ResolveRefAsync("HEAD");
+        var tagRef = await _gitService.ResolveRefAsync("v1.0.0");
 
         await Assert.That(headRef.Kind).IsEqualTo(GitRefKind.Special);
         await Assert.That(headRef.CommitSha).IsEqualTo(tagRef.CommitSha);
@@ -446,8 +445,8 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
         _gitService.SetWorkingDirectory(_testRepoPath);
 
-        var ref1 = _gitService.ResolveRef("v1.0.0");
-        var ref2 = _gitService.ResolveRef("v1.0.0");
+        var ref1 = await _gitService.ResolveRefAsync("v1.0.0");
+        var ref2 = await _gitService.ResolveRefAsync("v1.0.0");
 
         await Assert.That(ref1.CommitSha).IsEqualTo(ref2.CommitSha);
     }

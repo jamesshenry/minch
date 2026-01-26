@@ -3,7 +3,7 @@
         "MinCh": {
             "commandName": "Project",
             "commandLineArgs": "",
-            "workingDirectory": "..\\"
+            "workingDirectory": ""
         }
     }
 }

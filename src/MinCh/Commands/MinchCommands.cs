@@ -2,10 +2,12 @@ using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinCh.Configuration;
+using MinCh.Library.Services;
 using MinCh.Services;
 
 namespace MinCh.Commands;
 
+[RegisterCommands]
 public class MinchCommands(
     IChangeSetBuilder builder,
     ILogger<MinchCommands> logger,
@@ -24,18 +26,18 @@ public class MinchCommands(
     /// <param name="from">Explicit baseline (overrides positional baseline)</param>
     /// <param name="to">Target ref to compare against (default: HEAD)</param>
     /// <param name="output"> Output format: text | json</param>
-    /// <param name="allowDirty"></param>
+    /// <param name="check"></param>
     [Command("")]
-    public void Root(
+    public async Task Root(
         string from = "last-tag",
         string to = "HEAD",
         string output = "text",
-        bool allowDirty = false
+        CheckMode check = CheckMode.Dirty
     )
     {
         try
         {
-            var changeSet = _builder.Build(from, to, allowDirty);
+            var changeSet = await _builder.BuildAsync(from, to, check == CheckMode.Dirty);
 
             var renderer = _factory.GetRenderer(output);
             Console.WriteLine(renderer.Render(changeSet));
@@ -51,4 +53,10 @@ public class MinchCommands(
             Environment.Exit(2);
         }
     }
+}
+
+public enum CheckMode
+{
+    None,
+    Dirty,
 }

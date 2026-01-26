@@ -1,12 +1,16 @@
 using System.Diagnostics;
+using CliWrap;
+using CliWrap.Buffered;
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
 
 namespace MinCh.Library.Services;
 
-public class GitService(ILogger<GitService> logger, string gitExecutablePath = "git") : IGitService
+public partial class GitService(ILogger<GitService> logger, string gitExecutablePath = "git")
+    : IGitService
 {
     private string _workingDirectory = Directory.GetCurrentDirectory();
+    private readonly ILogger<GitService> _logger = logger;
     private readonly string _gitExecutablePath = gitExecutablePath;
 
     /// <summary>
@@ -19,15 +23,10 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         _workingDirectory = path;
     }
 
-    public void DoSomething()
-    {
-        logger.LogCritical("I am doing something");
-    }
-
-    public Ref ResolveRef(string refName)
+    public async Task<Ref> ResolveRefAsync(string refName)
     {
         // Try to resolve as a tag first
-        var tagSha = GetRefSha($"refs/tags/{refName}");
+        var tagSha = await GetRefShaAsync($"refs/tags/{refName}");
         if (tagSha != null)
             return new Ref
             {
@@ -37,7 +36,7 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
             };
 
         // Try as a branch
-        var branchSha = GetRefSha($"refs/heads/{refName}");
+        var branchSha = await GetRefShaAsync($"refs/heads/{refName}");
         if (branchSha != null)
             return new Ref
             {
@@ -49,7 +48,7 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         // Try as special ref (HEAD)
         if (refName == "HEAD")
         {
-            var headSha = GetRefSha("HEAD");
+            var headSha = await GetRefShaAsync("HEAD");
             if (headSha != null)
                 return new Ref
                 {
@@ -62,7 +61,7 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         // Try as commit SHA (abbreviated or full)
         if (IsValidCommitSha(refName))
         {
-            var fullSha = GetFullCommitSha(refName);
+            var fullSha = await GetFullCommitShaAsync(refName);
             if (fullSha != null)
                 return new Ref
                 {
@@ -75,18 +74,18 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         throw new InvalidOperationException($"Unable to resolve ref: {refName}");
     }
 
-    public bool IsDirty()
+    public async Task<bool> IsDirtyAsync()
     {
-        var output = RunGit("status --porcelain");
+        var output = await RunGitCliWrapAsync("status --porcelain");
         return !string.IsNullOrWhiteSpace(output);
     }
 
-    public string? GetLastTag()
+    public async Task<string?> GetLastTagAsync()
     {
         try
         {
             // --abbrev=0 returns just the tag name without commit distance
-            var output = RunGit("describe --tags --abbrev=0");
+            var output = await RunGitCliWrapAsync("describe --tags --abbrev=0");
             return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
         }
         catch
@@ -95,10 +94,10 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         }
     }
 
-    public IReadOnlyList<Commit> GetCommits(Ref fromRef, Ref toRef)
+    public async Task<IReadOnlyList<Commit>> GetCommitsAsync(Ref fromRef, Ref toRef)
     {
         var range = $"{fromRef.CommitSha}..{toRef.CommitSha}";
-        var output = RunGit($"log --format=%H%n%an%n%ai%n%s {range}");
+        var output = await RunGitCliWrapAsync($"log --format=%H%n%an%n%ai%n%s {range}");
 
         if (string.IsNullOrWhiteSpace(output))
             return [];
@@ -128,10 +127,10 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         return commits;
     }
 
-    public IReadOnlyList<string> GetFiles(Ref fromRef, Ref toRef)
+    public async Task<IReadOnlyList<string>> GetFilesAsync(Ref fromRef, Ref toRef)
     {
         var range = $"{fromRef.CommitSha}..{toRef.CommitSha}";
-        var output = RunGit($"diff --name-only {range}");
+        var output = await RunGitCliWrapAsync($"diff --name-only {range}");
 
         if (string.IsNullOrWhiteSpace(output))
             return [];
@@ -143,16 +142,11 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
             .ToList();
     }
 
-    public ChangeSet GetChangeSet(Ref fromRef, Ref toRef)
-    {
-        throw new NotImplementedException();
-    }
-
-    private string? GetRefSha(string refPath)
+    private async Task<string?> GetRefShaAsync(string refPath)
     {
         try
         {
-            var output = RunGit($"rev-parse {refPath}");
+            var output = await RunGitCliWrapAsync($"rev-parse {refPath}");
             return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
         }
         catch
@@ -161,11 +155,11 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         }
     }
 
-    private string? GetFullCommitSha(string sha)
+    private async Task<string?> GetFullCommitShaAsync(string sha)
     {
         try
         {
-            var output = RunGit($"rev-parse {sha}^{{commit}}");
+            var output = await RunGitCliWrapAsync($"rev-parse {sha}^{{commit}}");
             return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
         }
         catch
@@ -180,32 +174,17 @@ public class GitService(ILogger<GitService> logger, string gitExecutablePath = "
         return sha.Length >= 7 && sha.All(c => "0123456789abcdefABCDEF".Contains(c));
     }
 
-    private string RunGit(string arguments)
+    private async Task<string> RunGitCliWrapAsync(string arguments)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = _gitExecutablePath,
-            Arguments = arguments,
-            WorkingDirectory = _workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
+        var cmd = Cli.Wrap(_gitExecutablePath)
+            .WithArguments(arguments)
+            .WithWorkingDirectory(_workingDirectory);
 
-        using (var process = Process.Start(psi))
-        {
-            if (process == null)
-                throw new InvalidOperationException("Failed to start git process");
+        var result = await cmd.ExecuteBufferedAsync();
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit();
+        if (result.ExitCode != 0)
+            throw new InvalidOperationException($"Git command failed: {result.StandardError}");
 
-            if (process.ExitCode != 0)
-                throw new InvalidOperationException($"Git command failed: {error}");
-
-            return output;
-        }
+        return result.StandardOutput;
     }
 }

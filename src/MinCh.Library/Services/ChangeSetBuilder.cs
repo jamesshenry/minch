@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
-using MinCh.Library.Services;
 
-namespace MinCh.Commands;
+namespace MinCh.Library.Services;
 
 public interface IChangeSetBuilder
 {
-    ChangeSet Build(string from, string to = "HEAD", bool allowDirty = false);
+    Task<ChangeSet> BuildAsync(string from, string to = "HEAD", bool allowDirty = false);
 }
 
 public class ChangeSetBuilder(IGitService gitService, ILogger<ChangeSetBuilder> logger)
@@ -15,34 +14,38 @@ public class ChangeSetBuilder(IGitService gitService, ILogger<ChangeSetBuilder> 
     private readonly IGitService _service = gitService;
     private readonly ILogger<ChangeSetBuilder> _logger = logger;
 
-    public ChangeSet Build(string from, string to = "HEAD", bool allowDirty = false)
+    public async Task<ChangeSet> BuildAsync(
+        string from,
+        string to = "HEAD",
+        bool allowDirty = false
+    )
     {
         // Handle special "last-tag" keyword
         var fromRefName = from;
         if (from.Equals("last-tag", StringComparison.OrdinalIgnoreCase))
         {
             fromRefName =
-                _service.GetLastTag()
+                await _service.GetLastTagAsync()
                 ?? throw new InvalidOperationException("No tags found in repository");
-            _logger.LogDebug($"Resolved 'last-tag' to: {fromRefName}");
+            _logger.LogTrace($"Resolved 'last-tag' to: {fromRefName}");
         }
 
-        var fromRef = _service.ResolveRef(fromRefName);
+        var fromRef = await _service.ResolveRefAsync(fromRefName);
         _logger.LogDebug($"From ref resolved to: {fromRef}");
-        var toRef = _service.ResolveRef(to);
+        var toRef = await _service.ResolveRefAsync(to);
         _logger.LogDebug($"To ref resolved to: {toRef}");
-
-        if (!allowDirty && _service.IsDirty())
+        bool dirty = await _service.IsDirtyAsync();
+        if (!allowDirty && dirty)
             throw new InvalidOperationException("Working tree is dirty");
 
-        var commits = _service.GetCommits(fromRef, toRef);
-        var files = _service.GetFiles(fromRef, toRef);
+        var commits = await _service.GetCommitsAsync(fromRef, toRef);
+        var files = await _service.GetFilesAsync(fromRef, toRef);
 
         return new ChangeSet
         {
             From = fromRef,
             To = toRef,
-            IsDirty = _service.IsDirty(),
+            IsDirty = dirty,
             CommitCount = commits.Count,
             Commits = commits,
             Files = files,

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using MinCh.Commands;
 using MinCh.Library.Services;
 
 namespace MinCh.Tests;
@@ -41,7 +40,7 @@ public class ChangeSetBuilderTests
     [Test]
     public async Task Build_CleanWorkingTree_ReturnsChangeSetWithIsDirtyFalse()
     {
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0");
 
         await Assert.That(changeSet.IsDirty).IsFalse();
         await Assert.That(changeSet.From.Name).IsEqualTo("v1.0.0");
@@ -55,7 +54,7 @@ public class ChangeSetBuilderTests
         await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "newfile.txt"), "Dirty change");
 
         await Assert
-            .That(() => _builder.Build("v1.0.0", "v2.0.0", allowDirty: false))
+            .That(async () => await _builder.BuildAsync("v1.0.0", "v2.0.0", allowDirty: false))
             .Throws<InvalidOperationException>();
     }
 
@@ -65,7 +64,7 @@ public class ChangeSetBuilderTests
         // Make repo dirty
         await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "newfile.txt"), "Dirty change");
 
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0", allowDirty: true);
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0", allowDirty: true);
 
         await Assert.That(changeSet.IsDirty).IsTrue();
     }
@@ -73,7 +72,7 @@ public class ChangeSetBuilderTests
     [Test]
     public async Task Build_CommitsExistBetweenRefs_PopulatesCommitsAndFiles()
     {
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0");
 
         await Assert.That(changeSet.CommitCount).IsGreaterThan(0);
         await Assert.That(changeSet.Commits.Count).IsGreaterThan(0);
@@ -83,7 +82,7 @@ public class ChangeSetBuilderTests
     [Test]
     public async Task Build_OneCommitBetweenRefs_ReturnsCorrectCommitDetails()
     {
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0");
 
         await Assert.That(changeSet.CommitCount).IsEqualTo(1);
         await Assert.That(changeSet.Commits.Count).IsEqualTo(1);
@@ -93,7 +92,7 @@ public class ChangeSetBuilderTests
     [Test]
     public async Task Build_FileAddedInRange_IncludesFileInFilesList()
     {
-        var changeSet = _builder.Build("v1.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v1.0.0", "v2.0.0");
 
         await Assert.That(changeSet.Files).Contains("file2.txt");
     }
@@ -101,7 +100,7 @@ public class ChangeSetBuilderTests
     [Test]
     public async Task Build_NoCommitsBetweenRefs_ReturnsEmptyChangeSet()
     {
-        var changeSet = _builder.Build("v2.0.0", "v2.0.0");
+        var changeSet = await _builder.BuildAsync("v2.0.0", "v2.0.0");
 
         await Assert.That(changeSet.CommitCount).IsEqualTo(0);
         await Assert.That(changeSet.Commits.Count).IsEqualTo(0);
@@ -118,7 +117,7 @@ public class ChangeSetBuilderTests
         await GlobalHooks.RunGitAsync("commit -m \"Delete file2\"", _testRepoPath);
         await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
-        var changeSet = _builder.Build("v2.0.0", "v2.2.0");
+        var changeSet = await _builder.BuildAsync("v2.0.0", "v2.2.0");
 
         await Assert.That(changeSet.Files).Contains("file2.txt");
     }
@@ -134,7 +133,7 @@ public class ChangeSetBuilderTests
         await GlobalHooks.RunGitAsync("commit -m \"Add binary image\"", _testRepoPath);
         await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
-        var changeSet = _builder.Build("v2.0.0", "v2.2.0");
+        var changeSet = await _builder.BuildAsync("v2.0.0", "v2.2.0");
 
         await Assert.That(changeSet.Files).Contains("image.png");
     }
@@ -154,7 +153,7 @@ public class ChangeSetBuilderTests
         await GlobalHooks.RunGitAsync("commit -m \"Rename file1\"", _testRepoPath);
         await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
-        var changeSet = _builder.Build("v2.0.0", "v2.2.0");
+        var changeSet = await _builder.BuildAsync("v2.0.0", "v2.2.0");
 
         // The file should appear in the diff (either old or new name depending on git diff output)
         await Assert.That(changeSet.Files.Count).IsGreaterThan(0);

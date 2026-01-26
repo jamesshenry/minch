@@ -9,6 +9,7 @@ Log.Logger = ServiceExtensions.CreateAppLogger();
 
 try
 {
+#if !PUBLISH_AS_TOOL
     if (OperatingSystem.IsWindows())
     {
         VelopackApp
@@ -19,19 +20,27 @@ try
     }
 
     await StartupTasks.InitializeAsync(Log.Logger);
-
+#endif
     var app = ConsoleApp
         .Create()
-        .ConfigureEmptyConfiguration(configure => configure.CreateConfiguration())
+        .ConfigureGlobalOptions(
+            (ref builder) =>
+            {
+                var verbose = builder.AddGlobalOption<bool>("-v|--verbose", "", false);
+                return new GlobalOptions(verbose);
+            }
+        );
+    ;
+    app.ConfigureEmptyConfiguration(configure => configure.CreateConfiguration())
         .ConfigureServices(
-            (configuration, services) =>
+            (context, configuration, services) =>
             {
                 services.RegisterAppServices(configuration, Log.Logger);
             }
         );
 
     app.UseFilter<ExceptionFilter>();
-
+    app.UseFilter<ServiceProviderScopeFilter>();
     await app.RunAsync(args);
 }
 catch (Exception ex)
@@ -42,3 +51,5 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+
+internal record GlobalOptions(bool Verbose);

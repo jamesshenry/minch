@@ -16,16 +16,27 @@ public static class ServiceExtensions
     private const string OutputTemplate =
         "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceClass}) {Message:lj}{NewLine}{Exception}";
 
+    /// <summary>
+    /// Static switch for controlling log level at runtime.
+    /// </summary>
+    private static readonly LoggingLevelSwitch LogLevelSwitch = new(LogEventLevel.Information);
+
+    /// <summary>
+    /// Gets the logging level switch to allow runtime adjustments.
+    /// </summary>
+    public static LoggingLevelSwitch GetLogLevelSwitch() => LogLevelSwitch;
+
     public static IConfigurationBuilder CreateConfiguration(
         this IConfigurationBuilder configuration
     )
     {
-        return configuration.AddJsonFile("config.json", optional: false, reloadOnChange: true);
+        return configuration.AddJsonFile("config.json", optional: true, reloadOnChange: true);
     }
 
     public static Logger CreateAppLogger() =>
         new LoggerConfiguration()
-            .MinimumLevel.Information()
+            .MinimumLevel.ControlledBy(LogLevelSwitch)
+            .WriteTo.Console()
             .WriteTo.File(
                 formatter: new MessageTemplateTextFormatter(OutputTemplate),
                 Path.Combine(AppPaths.StateHome, "logs", "app-.log"),
@@ -45,7 +56,9 @@ public static class ServiceExtensions
         Serilog.ILogger? appLogger = null
     )
     {
+        services.AddLogging();
         services.AddSerilog(logger: appLogger, dispose: appLogger is null);
+        services.AddSingleton(LogLevelSwitch);
         services.AddSingleton(configuration);
         services.AddSingleton<IGitService, GitService>();
         services.AddSingleton<RendererFactory>();

@@ -37,8 +37,8 @@ app.OnExecuteAsync(async _ =>
 {
     const string configuration = "Release";
     const string solution = "MinCh.slnx";
-    const string publishProject = null!; // = "src/MinCh/MinCh.csproj";
-    const string packProject = null!; // = "src/MinCh.Library/MinCh.Library.csproj";
+    const string publishProject = "src/MinCh/MinCh.csproj";
+    const string packProject = "src/MinCh/MinCh.csproj";
 
     var root = Directory.GetCurrentDirectory();
 
@@ -147,7 +147,7 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
 
             await RunAsync(
                 "dotnet",
-                $"pack {packProject} -c {configuration} -o {nugetOutputDir} --no-build"
+                $"pack {packProject} -c {configuration} -o {nugetOutputDir} /p:PackAsTool=true --runtime linux-x64 --no-build"
             );
 
             var files = Directory.GetFiles(nugetOutputDir, "*.nupkg");

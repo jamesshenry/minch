@@ -1,10 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <OutputType>Exe</OutputType>
     <RootNamespace>MinCh</RootNamespace>
     <PublishAot>true</PublishAot>
     <MinVerDefaultPreReleaseIdentifiers>preview</MinVerDefaultPreReleaseIdentifiers>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <Description>Minimalist git change tracking</Description>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PackAsTool)' == 'true'">
+    <ToolCommandName>minch</ToolCommandName>
+    <PackageId>minch</PackageId>
+    <Authors>jamesshenry</Authors>
+    <PublishTrimmed>true</PublishTrimmed>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <StripSymbols>true</StripSymbols>
+    <DefineConstants>$(DefineConstants);PUBLISH_AS_TOOL</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ConsoleAppFramework" Version="5.7.13">

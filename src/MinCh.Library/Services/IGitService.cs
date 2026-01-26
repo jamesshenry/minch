@@ -4,16 +4,10 @@ namespace MinCh.Library.Services;
 
 public interface IGitService
 {
-    void DoSomething();
-    ChangeSet GetChangeSet(Ref fromRef, Ref toRef);
-    IReadOnlyList<Commit> GetCommits(Ref fromRef, Ref toRef);
-    IReadOnlyList<string> GetFiles(Ref fromRef, Ref toRef);
-    bool IsDirty();
-    Ref ResolveRef(string from);
-
-    /// <summary>
-    /// Gets the most recent tag reachable from HEAD using git describe.
-    /// </summary>
-    /// <returns>The tag name, or null if no tags exist.</returns>
-    string? GetLastTag();
+    Task<IReadOnlyList<Commit>> GetCommitsAsync(Ref fromRef, Ref toRef);
+    Task<IReadOnlyList<string>> GetFilesAsync(Ref fromRef, Ref toRef);
+    Task<string?> GetLastTagAsync();
+    Task<bool> IsDirtyAsync();
+    Task<Ref> ResolveRefAsync(string refName);
+    void SetWorkingDirectory(string path);
 }
