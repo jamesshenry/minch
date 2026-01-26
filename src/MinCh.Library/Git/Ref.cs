@@ -2,9 +2,9 @@
 
 public record Ref
 {
-    public string Name { get; init; }
-    public GitRefKind Kind { get; init; }
-    public string CommitSha { get; init; }
+    public required string Name { get; init; }
+    public required GitRefKind Kind { get; init; }
+    public required string CommitSha { get; init; }
 }
 
 public enum GitRefKind

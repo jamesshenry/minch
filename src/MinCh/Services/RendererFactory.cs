@@ -33,10 +33,6 @@ internal class JsonRenderer : IChangeSetRenderer
 {
     public string Render(ChangeSet changeSet)
     {
-        var json = JsonSerializer.Serialize(
-            changeSet,
-            new JsonSerializerOptions { WriteIndented = true }
-        );
-        return json;
+        return JsonSerializer.Serialize(changeSet, ChangeSetContext.Default.ChangeSet);
     }
 }

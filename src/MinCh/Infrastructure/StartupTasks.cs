@@ -38,7 +38,7 @@ public static class StartupTasks
         logger.Info($"Remove from path result: {result.Status}");
     }
 
-    public static async Task InitializeAsync(Serilog.ILogger? logger = null)
+    public static async Task InitializeAsync(ILogger? logger = null)
     {
         Directory.CreateDirectory(AppPaths.ConfigHome);
         Directory.CreateDirectory(AppPaths.StateHome);
@@ -50,7 +50,7 @@ public static class StartupTasks
             logger?.Information("Creating default config: {Path}", configPath);
             await File.WriteAllTextAsync(
                 configPath,
-                JsonSerializer.Serialize(AppConfigContext.Default.AppConfig)
+                JsonSerializer.Serialize(new AppConfig(), AppConfigContext.Default.AppConfig)
             );
         }
 
@@ -71,7 +71,7 @@ public static class StartupTasks
             try
             {
                 var json = await File.ReadAllTextAsync(statePath);
-                state = JsonSerializer.Deserialize<AppState>(json) ?? state;
+                state = JsonSerializer.Deserialize(json, AppStateContext.Default.AppState) ?? state;
             }
             catch { }
         }
@@ -83,13 +83,19 @@ public static class StartupTasks
         if (state.LastRunVersion != currentVersion)
         {
             state.LastRunVersion = currentVersion;
-            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(state, JsonOptions));
+            await File.WriteAllTextAsync(
+                statePath,
+                JsonSerializer.Serialize(state, AppStateContext.Default.AppState)
+            );
         }
 
         if (state.LastRunVersion != currentVersion)
         {
             state.LastRunVersion = currentVersion;
-            await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(state, JsonOptions));
+            await File.WriteAllTextAsync(
+                statePath,
+                JsonSerializer.Serialize(state, AppStateContext.Default.AppState)
+            );
         }
     }
 }

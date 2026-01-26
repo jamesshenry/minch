@@ -11,7 +11,6 @@ namespace MinCh.Tests;
 public static class GlobalHooks
 {
     private static string? _templatePath;
-    private static readonly Lock _lock = new();
 
     /// <summary>
     /// Path to the shared template repository. Contains baseline state:

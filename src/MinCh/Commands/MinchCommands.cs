@@ -15,10 +15,11 @@ public class MinchCommands(
 {
     private readonly AppConfig config = options.Value;
     private readonly IChangeSetBuilder _builder = builder;
+    private readonly ILogger<MinchCommands> _logger = logger;
     private readonly RendererFactory _factory = factory;
 
     /// <summary>
-    ///
+    /// Computes the set of changes between two Git references.
     /// </summary>
     /// <param name="from">Explicit baseline (overrides positional baseline)</param>
     /// <param name="to">Target ref to compare against (default: HEAD)</param>
