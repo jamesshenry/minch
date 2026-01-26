@@ -1,6 +1,6 @@
 using System.Text.Json;
-using MinCh.Configuration;
 using DotNetPathUtils;
+using MinCh.Configuration;
 using NuGet.Versioning;
 using Serilog;
 using Velopack.Locators;

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
 using MinCh.Services;
@@ -22,47 +21,11 @@ public class GitRefResolutionTests
             .CreateLogger<GitService>();
         _gitService = new GitService(logger);
 
-        // Create temporary test repository
-        _testRepoPath = Path.Combine(Path.GetTempPath(), $"test_repo_{Guid.NewGuid()}");
-        Directory.CreateDirectory(_testRepoPath);
+        // Clone template repo for isolation (some tests modify state)
+        _testRepoPath = await GlobalHooks.CloneTemplateAsync();
 
-        // Initialize repo
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
-
-        // Create initial commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file1.txt"), "Initial content");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
-
-        // Create a tag
-        await RunGitAsync("tag v1.0.0", _testRepoPath);
-
-        // Create another commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file2.txt"), "Second commit");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Second commit\"", _testRepoPath);
-
-        // Create another tag
-        await RunGitAsync("tag v1.1.0", _testRepoPath);
-
-        // Create a branch
-        await RunGitAsync("checkout -b feature/test", _testRepoPath);
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file3.txt"), "Feature commit");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Feature commit\"", _testRepoPath);
-
-        // Switch back to main (may already exist)
-        try
-        {
-            await RunGitAsync("checkout -b main", _testRepoPath);
-        }
-        catch
-        {
-            // main already exists, just checkout
-            await RunGitAsync("checkout main", _testRepoPath);
-        }
+        // Add v1.1.0 tag needed by this test class (template only has v1.0.0 and v2.0.0)
+        await GlobalHooks.RunGitAsync("tag v1.1.0", _testRepoPath);
 
         _gitService.SetWorkingDirectory(_testRepoPath);
     }
@@ -70,21 +33,7 @@ public class GitRefResolutionTests
     [After(Test)]
     public void CleanUpTestRepo()
     {
-        try
-        {
-            // Force close any git processes
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
-
-            if (Directory.Exists(_testRepoPath))
-            {
-                Directory.Delete(_testRepoPath, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors in tests
-        }
+        GlobalHooks.CleanupDirectory(_testRepoPath);
     }
 
     [Test]
@@ -167,7 +116,7 @@ public class GitRefResolutionTests
     public async Task ResolveRef_DetachedHeadAtTag_ResolvesHeadAndTag()
     {
         // Checkout a specific tag to detach HEAD
-        await RunGitAsync("checkout v1.0.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("checkout v1.0.0", _testRepoPath);
 
         var headRef = _gitService.ResolveRef("HEAD");
         await Assert.That(headRef.Kind).IsEqualTo(GitRefKind.Special);
@@ -181,44 +130,11 @@ public class GitRefResolutionTests
     {
         // Create both a tag and branch with the same name (unlikely in practice but testing edge case)
         // For this test, we'll verify that explicit tag lookup works
-        await RunGitAsync("tag v1.2.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v1.2.0", _testRepoPath);
 
         var ref1 = _gitService.ResolveRef("v1.2.0");
         var ref2 = _gitService.ResolveRef("v1.2.0");
 
         await Assert.That(ref1.CommitSha).IsEqualTo(ref2.CommitSha);
-    }
-
-    private static async Task RunGitAsync(string arguments, string workingDirectory)
-    {
-        var tcs = new TaskCompletionSource<object?>();
-        var psi = new ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        process.Exited += (s, e) =>
-        {
-            if (process.ExitCode != 0)
-            {
-                string error = process.StandardError.ReadToEnd();
-                tcs.SetException(new Exception($"Git command failed: {error}"));
-            }
-            else
-            {
-                tcs.SetResult(null);
-            }
-            process.Dispose();
-        };
-
-        process.Start();
-        await tcs.Task;
     }
 }

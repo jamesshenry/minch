@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using MinCh.Commands;
-using MinCh.Library.Git;
 using MinCh.Services;
 
 namespace MinCh.Tests;
@@ -29,26 +27,8 @@ public class ChangeSetBuilderTests
             .CreateLogger<ChangeSetBuilder>();
         _builder = new ChangeSetBuilder(_gitService, builderLogger);
 
-        // Create temporary test repository
-        _testRepoPath = Path.Combine(Path.GetTempPath(), $"changeset_repo_{Guid.NewGuid()}");
-        Directory.CreateDirectory(_testRepoPath);
-
-        // Initialize repo
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
-
-        // Create initial commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file1.txt"), "Initial content");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
-        await RunGitAsync("tag v1.0.0", _testRepoPath);
-
-        // Create second commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file2.txt"), "Second commit");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Second commit\"", _testRepoPath);
-        await RunGitAsync("tag v2.0.0", _testRepoPath);
+        // Clone template repo for isolation (tests modify state)
+        _testRepoPath = await GlobalHooks.CloneTemplateAsync();
 
         _gitService.SetWorkingDirectory(_testRepoPath);
     }
@@ -56,21 +36,7 @@ public class ChangeSetBuilderTests
     [After(Test)]
     public void CleanUpTestRepo()
     {
-        try
-        {
-            // Force close any git processes
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
-
-            if (Directory.Exists(_testRepoPath))
-            {
-                Directory.Delete(_testRepoPath, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors in tests
-        }
+        GlobalHooks.CleanupDirectory(_testRepoPath);
     }
 
     [Test]
@@ -147,11 +113,11 @@ public class ChangeSetBuilderTests
     public async Task Build_FileDeletedInRange_IncludesDeletedFileInFilesList()
     {
         // Create a new tag, then delete file2 and commit
-        await RunGitAsync("tag v2.1.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.1.0", _testRepoPath);
         File.Delete(Path.Combine(_testRepoPath, "file2.txt"));
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Delete file2\"", _testRepoPath);
-        await RunGitAsync("tag v2.2.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Delete file2\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
         var changeSet = _builder.Build("v2.0.0", "v2.2.0");
 
@@ -162,12 +128,12 @@ public class ChangeSetBuilderTests
     public async Task Build_BinaryFileChanged_IncludesFileInFilesList()
     {
         // Create a binary file
-        await RunGitAsync("tag v2.1.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.1.0", _testRepoPath);
         byte[] binaryData = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]; // PNG signature
         await File.WriteAllBytesAsync(Path.Combine(_testRepoPath, "image.png"), binaryData);
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Add binary image\"", _testRepoPath);
-        await RunGitAsync("tag v2.2.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Add binary image\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
         var changeSet = _builder.Build("v2.0.0", "v2.2.0");
 
@@ -178,53 +144,20 @@ public class ChangeSetBuilderTests
     public async Task Build_FileRenamed_IncludesRenamedFileInFilesList()
     {
         // Create initial state
-        await RunGitAsync("tag v2.1.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.1.0", _testRepoPath);
 
         // Rename file1.txt to file1_renamed.txt
         File.Move(
             Path.Combine(_testRepoPath, "file1.txt"),
             Path.Combine(_testRepoPath, "file1_renamed.txt")
         );
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Rename file1\"", _testRepoPath);
-        await RunGitAsync("tag v2.2.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Rename file1\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
         var changeSet = _builder.Build("v2.0.0", "v2.2.0");
 
         // The file should appear in the diff (either old or new name depending on git diff output)
         await Assert.That(changeSet.Files.Count).IsGreaterThan(0);
-    }
-
-    private static async Task RunGitAsync(string arguments, string workingDirectory)
-    {
-        var tcs = new TaskCompletionSource<object?>();
-        var psi = new ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        process.Exited += (s, e) =>
-        {
-            if (process.ExitCode != 0)
-            {
-                string error = process.StandardError.ReadToEnd();
-                tcs.SetException(new Exception($"Git command failed: {error}"));
-            }
-            else
-            {
-                tcs.SetResult(null);
-            }
-            process.Dispose();
-        };
-
-        process.Start();
-        await tcs.Task;
     }
 }

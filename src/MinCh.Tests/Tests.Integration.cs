@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using MinCh.Commands;
 using MinCh.Library.Git;
@@ -37,6 +36,7 @@ public class IntegrationSyntheticReposTests
             .CreateLogger<ChangeSetBuilder>();
         _builder = new ChangeSetBuilder(_gitService, builderLogger);
 
+        // Each test creates its own specialized repo
         _testRepoPath = Path.Combine(Path.GetTempPath(), $"synth_repo_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testRepoPath);
     }
@@ -44,21 +44,7 @@ public class IntegrationSyntheticReposTests
     [After(Test)]
     public void CleanUpTestRepo()
     {
-        try
-        {
-            // Force close any git processes
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
-
-            if (Directory.Exists(_testRepoPath))
-            {
-                Directory.Delete(_testRepoPath, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors in tests
-        }
+        GlobalHooks.CleanupDirectory(_testRepoPath);
     }
 
     /// <summary>
@@ -156,7 +142,7 @@ public class IntegrationSyntheticReposTests
         await CreateBranchTagRepoAsync();
 
         // Checkout specific tag to detach HEAD
-        await RunGitAsync("checkout v1.0.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("checkout v1.0.0", _testRepoPath);
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
@@ -173,13 +159,13 @@ public class IntegrationSyntheticReposTests
     public async Task FileDeleteRepo_DeletedFileTracked_FileAppearsInDiff()
     {
         await CreateBranchTagRepoAsync();
-        await RunGitAsync("tag v2.1.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.1.0", _testRepoPath);
 
         // Delete a file
         File.Delete(Path.Combine(_testRepoPath, "file2.txt"));
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Delete file2\"", _testRepoPath);
-        await RunGitAsync("tag v2.2.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Delete file2\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.2.0", _testRepoPath);
 
         _gitService.SetWorkingDirectory(_testRepoPath);
 
@@ -192,103 +178,63 @@ public class IntegrationSyntheticReposTests
 
     private async Task CreateMinimalRepoAsync()
     {
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("init --initial-branch=main", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.name \"Test User\"", _testRepoPath);
 
         await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file1.txt"), "Initial content");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
     }
 
     private async Task CreateBranchTagRepoAsync()
     {
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("init --initial-branch=main", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.name \"Test User\"", _testRepoPath);
 
         // First commit on main
         await File.WriteAllTextAsync(
             Path.Combine(_testRepoPath, "file1.txt"),
             "First commit content"
         );
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"First commit\"", _testRepoPath);
-        await RunGitAsync("tag v1.0.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"First commit\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v1.0.0", _testRepoPath);
 
         // Second commit
         await File.WriteAllTextAsync(
             Path.Combine(_testRepoPath, "file2.txt"),
             "Second commit content"
         );
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Second commit\"", _testRepoPath);
-        await RunGitAsync("tag v2.0.0", _testRepoPath);
-
-        // Create and switch to main branch (if not already)
-        try
-        {
-            await RunGitAsync("checkout -b main", _testRepoPath);
-        }
-        catch
-        {
-            // main may already exist
-        }
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Second commit\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v2.0.0", _testRepoPath);
     }
 
     private async Task CreateMergeRepoAsync()
     {
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("init --initial-branch=main", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("config user.name \"Test User\"", _testRepoPath);
 
         // Initial commit
         await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file1.txt"), "Initial");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
-        await RunGitAsync("tag v1.0.0", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Initial commit\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("tag v1.0.0", _testRepoPath);
 
         // Create feature branch
-        await RunGitAsync("checkout -b feature/test", _testRepoPath);
+        await GlobalHooks.RunGitAsync("checkout -b feature/test", _testRepoPath);
         await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "feature.txt"), "Feature content");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Feature commit\"", _testRepoPath);
+        await GlobalHooks.RunGitAsync("add .", _testRepoPath);
+        await GlobalHooks.RunGitAsync("commit -m \"Feature commit\"", _testRepoPath);
 
         // Switch back to main and merge
-        await RunGitAsync("checkout -b main", _testRepoPath);
-        await RunGitAsync("merge feature/test -m \"Merge feature branch\"", _testRepoPath);
-    }
-
-    private static async Task RunGitAsync(string arguments, string workingDirectory)
-    {
-        var tcs = new TaskCompletionSource<object?>();
-        var psi = new ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        process.Exited += (s, e) =>
-        {
-            if (process.ExitCode != 0)
-            {
-                string error = process.StandardError.ReadToEnd();
-                tcs.SetException(new Exception($"Git command failed: {error}"));
-            }
-            else
-            {
-                tcs.SetResult(null);
-            }
-            process.Dispose();
-        };
-
-        process.Start();
-        await tcs.Task;
+        await GlobalHooks.RunGitAsync("checkout main", _testRepoPath);
+        await GlobalHooks.RunGitAsync(
+            "merge feature/test -m \"Merge feature branch\"",
+            _testRepoPath
+        );
     }
 }

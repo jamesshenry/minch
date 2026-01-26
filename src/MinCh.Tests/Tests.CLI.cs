@@ -23,26 +23,8 @@ public class CLIIntegrationTests
     [Before(Test)]
     public async Task SetUpCliTests()
     {
-        // Create a test repository
-        _testRepoPath = Path.Combine(Path.GetTempPath(), $"cli_test_{Guid.NewGuid()}");
-        Directory.CreateDirectory(_testRepoPath);
-
-        // Initialize repo with commits and tags
-        await RunGitAsync("init", _testRepoPath);
-        await RunGitAsync("config user.email \"test@example.com\"", _testRepoPath);
-        await RunGitAsync("config user.name \"Test User\"", _testRepoPath);
-
-        // Create first commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file1.txt"), "Content 1");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"First commit\"", _testRepoPath);
-        await RunGitAsync("tag v1.0.0", _testRepoPath);
-
-        // Create second commit
-        await File.WriteAllTextAsync(Path.Combine(_testRepoPath, "file2.txt"), "Content 2");
-        await RunGitAsync("add .", _testRepoPath);
-        await RunGitAsync("commit -m \"Second commit\"", _testRepoPath);
-        await RunGitAsync("tag v2.0.0", _testRepoPath);
+        // Clone template repo for CLI tests (each test needs isolated working directory)
+        _testRepoPath = await GlobalHooks.CloneTemplateAsync();
 
         // Path to the built MinCh executable
         _appPath = GetMinChExecutablePath();
@@ -51,25 +33,10 @@ public class CLIIntegrationTests
     [After(Test)]
     public void CleanUpCliTests()
     {
-        try
-        {
-            // Force close any git/minch processes
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
-
-            if (Directory.Exists(_testRepoPath))
-            {
-                Directory.Delete(_testRepoPath, recursive: true);
-            }
-        }
-        catch
-        {
-            // Ignore cleanup errors in tests
-        }
+        GlobalHooks.CleanupDirectory(_testRepoPath);
     }
 
     [Test]
-    
     public async Task CLI_DefaultRun_UsesLastTagToHEAD()
     {
         var result = await RunMinChAsync(null);
@@ -79,7 +46,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_ExplicitFrom_UsesProvidedRef()
     {
         var result = await RunMinChAsync(new[] { "--from", "v1.0.0", "--to", "v2.0.0" });
@@ -89,7 +55,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_TextOutput_FormatsAsText()
     {
         var result = await RunMinChAsync(new[] { "--output", "text" });
@@ -100,7 +65,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_JsonOutput_FormatsAsValidJson()
     {
         var result = await RunMinChAsync(new[] { "--output", "json" });
@@ -120,7 +84,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_InvalidFromRef_ExitsWithError()
     {
         var result = await RunMinChAsync(new[] { "--from", "non-existent-ref" });
@@ -130,7 +93,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_InvalidOutputFormat_ExitsWithError()
     {
         var result = await RunMinChAsync(new[] { "--output", "invalid" });
@@ -140,7 +102,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_DirtyRepoWithoutAllowDirty_ExitsWithError()
     {
         // Make repo dirty
@@ -153,7 +114,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_DirtyRepoWithAllowDirty_Succeeds()
     {
         // Make repo dirty
@@ -166,7 +126,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_NoChangesBetweenRefs_ExitsWithOne()
     {
         // Run with same ref for from and to
@@ -176,7 +135,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_ChangesDetected_ExitsWithZero()
     {
         var result = await RunMinChAsync(new[] { "--from", "v1.0.0", "--to", "v2.0.0" });
@@ -185,7 +143,6 @@ public class CLIIntegrationTests
     }
 
     [Test]
-    
     public async Task CLI_HelpFlag_DisplaysUsage()
     {
         var result = await RunMinChAsync(new[] { "--help" });
@@ -197,8 +154,12 @@ public class CLIIntegrationTests
 
     private string GetMinChExecutablePath()
     {
-        var testAssemblyLocation = Path.GetDirectoryName(typeof(CLIIntegrationTests).Assembly.Location)!;
-        var solutionRoot = Path.GetFullPath(Path.Combine(testAssemblyLocation, "..", "..", "..", ".."));
+        var testAssemblyLocation = Path.GetDirectoryName(
+            typeof(CLIIntegrationTests).Assembly.Location
+        )!;
+        var solutionRoot = Path.GetFullPath(
+            Path.Combine(testAssemblyLocation, "..", "..", "..", "..")
+        );
         var exeName = OperatingSystem.IsWindows() ? "MinCh.exe" : "MinCh";
         return Path.Combine(solutionRoot, "MinCh", "bin", "Release", "net10.0", exeName);
     }
@@ -234,38 +195,5 @@ public class CLIIntegrationTests
 
             return (process.ExitCode, output, error);
         }
-    }
-
-    private static async Task RunGitAsync(string arguments, string workingDirectory)
-    {
-        var tcs = new TaskCompletionSource<object?>();
-        var psi = new ProcessStartInfo
-        {
-            FileName = "git",
-            Arguments = arguments,
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        process.Exited += (s, e) =>
-        {
-            if (process.ExitCode != 0)
-            {
-                string error = process.StandardError.ReadToEnd();
-                tcs.SetException(new Exception($"Git command failed: {error}"));
-            }
-            else
-            {
-                tcs.SetResult(null);
-            }
-            process.Dispose();
-        };
-
-        process.Start();
-        await tcs.Task;
     }
 }
