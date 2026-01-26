@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="dotnet.config" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MinCh.Library/MinCh.Library.csproj" />
+    <Project Path="src/MinCh.Tests/MinCh.Tests.csproj" />
+    <Project Path="src/MinCh/MinCh.csproj" />
+  </Folder>
+</Solution>

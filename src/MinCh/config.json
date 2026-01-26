@@ -1,0 +1,7 @@
+{
+    "testAppSettings": {
+        "Port": "5001",
+        "Enabled": true,
+        "ApiUrl": "https://jsonplaceholder.typicode.com/"
+    }
+}

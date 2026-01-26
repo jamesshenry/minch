@@ -1,0 +1,9 @@
+{
+    "profiles": {
+        "MinCh": {
+            "commandName": "Project",
+            "commandLineArgs": "",
+            "workingDirectory": "..\\"
+        }
+    }
+}
