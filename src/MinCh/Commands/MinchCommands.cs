@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -5,6 +6,8 @@ using MinCh.Configuration;
 using MinCh.Infrastructure;
 using MinCh.Library.Services;
 using MinCh.Services;
+using Spectre.Console;
+using Spectre.Console.Json;
 
 namespace MinCh.Commands;
 
@@ -41,7 +44,16 @@ public class MinchCommands(
             var changeSet = await _builder.BuildAsync(from, to, check == CheckMode.Dirty);
 
             var renderer = _factory.GetRenderer(output);
-            Console.WriteLine(renderer.Render(changeSet));
+            var rendered = renderer.Render(changeSet);
+            if (renderer is JsonRenderer)
+            {
+                var jsonText = new JsonText(rendered);
+                AnsiConsole.Write(jsonText);
+            }
+            else
+            {
+                AnsiConsole.Write(rendered);
+            }
         }
         catch (ArgumentException ex)
         {
