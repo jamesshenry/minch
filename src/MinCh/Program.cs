@@ -1,6 +1,7 @@
 ﻿using ConsoleAppFramework;
 using MinCh.Filters;
 using MinCh.Infrastructure;
+using MinCh.Logging;
 using MinCh.Services;
 using Serilog;
 using Velopack;
@@ -18,16 +19,19 @@ try
             .OnBeforeUninstallFastCallback(v => StartupTasks.Uninstall(v))
             .Run();
     }
-
-    await StartupTasks.InitializeAsync(Log.Logger);
 #endif
+
     var app = ConsoleApp
         .Create()
         .ConfigureGlobalOptions(
             (ref builder) =>
             {
-                var verbose = builder.AddGlobalOption<bool>("-v|--verbose", "", false);
-                return new GlobalOptions(verbose);
+                var verbosity = builder.AddGlobalOption(
+                    "-v|--verbosity",
+                    "",
+                    VerbosityLevel.Minimal
+                );
+                return new GlobalOptions(verbosity);
             }
         );
     ;
@@ -39,17 +43,15 @@ try
             }
         );
 
-    app.UseFilter<ExceptionFilter>();
-    app.UseFilter<ServiceProviderScopeFilter>();
+    app.UseFilter<LoggingLevelFilter>();
     await app.RunAsync(args);
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not OperationCanceledException)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly during startup");
+    Log.Fatal(ex, "Application terminated unexpectedly");
+    Environment.ExitCode = 1;
 }
 finally
 {
     await Log.CloseAndFlushAsync();
 }
-
-internal record GlobalOptions(bool Verbose);

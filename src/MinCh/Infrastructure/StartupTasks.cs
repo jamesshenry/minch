@@ -1,8 +1,8 @@
 using System.Text.Json;
 using DotNetPathUtils;
+using Microsoft.Extensions.Logging;
 using MinCh.Configuration;
 using NuGet.Versioning;
-using Serilog;
 using Velopack.Locators;
 using Velopack.Logging;
 
@@ -15,13 +15,17 @@ public static class StartupTasks
 
     internal static void Install(SemanticVersion? v = null)
     {
-        var logger = VelopackLocator.CreateDefaultForPlatform().Log;
+        var locator = VelopackLocator.CreateDefaultForPlatform();
 
-        logger.Info("Performing installation tasks...");
-        logger.Info($"Adding path to $env.PATH: {AppContext.BaseDirectory} ");
+        var logger = locator.Log;
 
-        var appDir = Path.GetDirectoryName(AppContext.BaseDirectory)!;
-        var result = new PathEnvironmentHelper().EnsureDirectoryIsInPath(appDir);
+        var installDir = locator.RootAppDir is not null
+            ? Path.Combine(locator.RootAppDir, "current")
+            : AppDomain.CurrentDomain.BaseDirectory;
+
+        logger.Debug($"Adding path to $env.PATH: {installDir} ");
+
+        var result = new PathEnvironmentHelper().EnsureDirectoryIsInPath(installDir!);
 
         logger.Info($"Add path result: {result.Status}");
     }
@@ -40,14 +44,10 @@ public static class StartupTasks
 
     public static async Task InitializeAsync(ILogger? logger = null)
     {
-        Directory.CreateDirectory(AppPaths.ConfigHome);
-        Directory.CreateDirectory(AppPaths.StateHome);
-        Directory.CreateDirectory(AppPaths.DataHome);
-
         var configPath = Path.Combine(AppPaths.ConfigHome, "config.json");
         if (!File.Exists(configPath))
         {
-            logger?.Information("Creating default config: {Path}", configPath);
+            logger?.LogDebug("Creating default config: {Path}", configPath);
             await File.WriteAllTextAsync(
                 configPath,
                 JsonSerializer.Serialize(new AppConfig(), AppConfigContext.Default.AppConfig)
@@ -77,7 +77,7 @@ public static class StartupTasks
         }
         else
         {
-            logger?.Verbose("First run detected. Initializing state.");
+            logger?.LogTrace("First run detected. Initializing state.");
         }
 
         if (state.LastRunVersion != currentVersion)

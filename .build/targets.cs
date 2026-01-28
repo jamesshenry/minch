@@ -52,15 +52,18 @@ app.OnExecuteAsync(async _ =>
         )
     );
 
-    Target("clean", () => RunAsync("dotnet", $"clean {solution} --configuration {configuration}"));
+    Target(
+        "clean",
+        async () => await RunAsync("dotnet", $"clean {solution} --configuration {configuration}")
+    );
 
     Target(
         "restore",
-        () =>
+        async () =>
         {
             var rid = ridOption.Value();
             var runtimeArg = !string.IsNullOrEmpty(rid) ? $"--runtime {rid}" : string.Empty;
-            return RunAsync("dotnet", $"restore {solution} {runtimeArg}");
+            await RunAsync("dotnet", $"restore {solution} {runtimeArg}");
         }
     );
 
@@ -119,7 +122,7 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
 
     Target(
         "publish",
-        () =>
+        async () =>
         {
             var rid = ridOption.Value();
             ArgumentException.ThrowIfNullOrWhiteSpace(rid, nameof(rid));
@@ -129,7 +132,7 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
             if (Directory.Exists(publishDir))
                 Directory.Delete(publishDir, true);
 
-            return RunAsync(
+            await RunAsync(
                 "dotnet",
                 $"publish {publishProject} -c {configuration} -o {publishDir} {runtimeArg}"
             );
@@ -138,16 +141,17 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
 
     Target(
         "pack",
-        dependsOn: ["build"],
         async () =>
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(packProject);
-
+            var rid = ridOption.Value();
+            ArgumentException.ThrowIfNullOrWhiteSpace(rid, nameof(rid));
+            var runtimeArg = $"--runtime {rid}";
             var nugetOutputDir = Path.Combine(root, "dist", "nuget");
 
             await RunAsync(
                 "dotnet",
-                $"pack {packProject} -c {configuration} -o {nugetOutputDir} /p:PackAsTool=true --runtime linux-x64 --no-build"
+                $"pack {packProject} -c {configuration} -o {nugetOutputDir} /p:PackAsTool=true {runtimeArg}"
             );
 
             var files = Directory.GetFiles(nugetOutputDir, "*.nupkg");
@@ -165,7 +169,7 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
     Target(
         "release",
         ["publish"],
-        () =>
+        async () =>
         {
             const string velopackId = "MinCh";
             var version = versionOption.Value();
@@ -181,7 +185,7 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
                 rid.StartsWith("linux", StringComparison.OrdinalIgnoreCase) ? "[linux]"
                 : rid.StartsWith("osx", StringComparison.OrdinalIgnoreCase) ? "[osx]"
                 : "[win]";
-            return RunAsync(
+            await RunAsync(
                 "dotnet",
                 $"vpk {directive} pack --packId {velopackId} --packVersion {version} --packDir \"{publishDir}\" --outputDir \"{outputDir}\" --shortcuts \"None\" --yes"
             );
@@ -191,4 +195,4 @@ tool run reportgenerator -reports:"{coverageInputPath}" -targetdir:"{reportOutpu
     await RunTargetsAndExitAsync(targets, options);
 });
 
-return await app.ExecuteAsync(args);
+await app.ExecuteAsync(args);

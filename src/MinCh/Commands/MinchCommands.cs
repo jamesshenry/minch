@@ -2,6 +2,7 @@ using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MinCh.Configuration;
+using MinCh.Infrastructure;
 using MinCh.Library.Services;
 using MinCh.Services;
 
@@ -15,7 +16,7 @@ public class MinchCommands(
     RendererFactory factory
 )
 {
-    private readonly AppConfig config = options.Value;
+    private readonly AppConfig _config = options.Value;
     private readonly IChangeSetBuilder _builder = builder;
     private readonly ILogger<MinchCommands> _logger = logger;
     private readonly RendererFactory _factory = factory;
@@ -52,6 +53,12 @@ public class MinchCommands(
             Console.Error.WriteLine($"An unexpected error occurred: {ex.Message}");
             Environment.Exit(2);
         }
+    }
+
+    [Command("init")]
+    public async Task Init()
+    {
+        await StartupTasks.InitializeAsync(_logger);
     }
 }
 

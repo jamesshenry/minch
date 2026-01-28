@@ -2,12 +2,27 @@ namespace MinCh.Configuration;
 
 public static class AppPaths
 {
-    public static string AppName => "MinCh";
+    // Use a fixed string to avoid accidental name changes if the class is renamed
+    public const string AppName = "CAFConsole";
+    public static string AppNameLower => AppName.ToLower();
 
     public static string DataHome =>
-        Path.Combine(Xdg.Directories.BaseDirectory.DataHome, AppName.ToLower());
+        GetAndCreate(Path.Combine(Xdg.Directories.BaseDirectory.DataHome, AppNameLower));
     public static string ConfigHome =>
-        Path.Combine(Xdg.Directories.BaseDirectory.ConfigHome, AppName.ToLower());
+        GetAndCreate(Path.Combine(Xdg.Directories.BaseDirectory.ConfigHome, AppNameLower));
     public static string StateHome =>
-        Path.Combine(Xdg.Directories.BaseDirectory.StateHome, AppName.ToLower());
+        GetAndCreate(Path.Combine(Xdg.Directories.BaseDirectory.StateHome, AppNameLower));
+    public static string CacheHome =>
+        GetAndCreate(Path.Combine(Xdg.Directories.BaseDirectory.CacheHome, AppNameLower));
+
+    public static string LogDirectory => GetAndCreate(Path.Combine(StateHome, "logs"));
+
+    private static string GetAndCreate(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+        return path;
+    }
 }

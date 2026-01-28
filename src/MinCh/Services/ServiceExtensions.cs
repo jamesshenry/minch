@@ -15,16 +15,7 @@ public static class ServiceExtensions
 {
     private const string OutputTemplate =
         "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceClass}) {Message:lj}{NewLine}{Exception}";
-
-    /// <summary>
-    /// Static switch for controlling log level at runtime.
-    /// </summary>
-    private static readonly LoggingLevelSwitch LogLevelSwitch = new(LogEventLevel.Information);
-
-    /// <summary>
-    /// Gets the logging level switch to allow runtime adjustments.
-    /// </summary>
-    public static LoggingLevelSwitch GetLogLevelSwitch() => LogLevelSwitch;
+    private static readonly LoggingLevelSwitch ConsoleLevelSwitch = new(LogEventLevel.Warning);
 
     public static IConfigurationBuilder CreateConfiguration(
         this IConfigurationBuilder configuration
@@ -35,19 +26,18 @@ public static class ServiceExtensions
 
     public static Logger CreateAppLogger() =>
         new LoggerConfiguration()
-            .MinimumLevel.ControlledBy(LogLevelSwitch)
-            .WriteTo.Console()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("ApplicationName", nameof(MinCh))
+            .Enrich.With<SourceClassEnricher>()
+            .WriteTo.Console(outputTemplate: OutputTemplate, levelSwitch: ConsoleLevelSwitch)
             .WriteTo.File(
                 formatter: new MessageTemplateTextFormatter(OutputTemplate),
-                Path.Combine(AppPaths.StateHome, "logs", "app-.log"),
+                path: Path.Combine(AppPaths.LogDirectory, "app-.log"),
                 restrictedToMinimumLevel: LogEventLevel.Debug,
-                shared: true,
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 31
             )
-            .Enrich.FromLogContext()
-            .Enrich.WithProperty("ApplicationName", "<APP NAME>")
-            .Enrich.With<SourceClassEnricher>()
             .CreateLogger();
 
     public static IServiceCollection RegisterAppServices(
@@ -58,7 +48,7 @@ public static class ServiceExtensions
     {
         services.AddLogging();
         services.AddSerilog(logger: appLogger, dispose: appLogger is null);
-        services.AddSingleton(LogLevelSwitch);
+        services.AddSingleton(ConsoleLevelSwitch);
         services.AddSingleton(configuration);
         services.AddSingleton<IGitService, GitService>();
         services.AddSingleton<RendererFactory>();
