@@ -19,7 +19,7 @@ internal class LoggingLevelFilter(IServiceProvider serviceProvider, ConsoleAppFi
         var levelSwitch = serviceProvider.GetRequiredService<LoggingLevelSwitch>();
         GlobalOptions options = (context.GlobalOptions as GlobalOptions)!;
         levelSwitch.MinimumLevel = options.Verbosity.ToSerilogLevel();
-        logger?.LogDebug("Verbosity set to {Level}", levelSwitch.MinimumLevel);
+        logger?.VerbositySet(levelSwitch.MinimumLevel.ToString());
 
         await Next.InvokeAsync(context, cancellationToken);
     }

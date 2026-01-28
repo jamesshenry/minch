@@ -2,6 +2,7 @@ using System.Text.Json;
 using DotNetPathUtils;
 using Microsoft.Extensions.Logging;
 using MinCh.Configuration;
+using MinCh.Logging;
 using NuGet.Versioning;
 using Velopack.Locators;
 using Velopack.Logging;
@@ -47,7 +48,7 @@ public static class StartupTasks
         var configPath = Path.Combine(AppPaths.ConfigHome, "config.json");
         if (!File.Exists(configPath))
         {
-            logger?.LogDebug("Creating default config: {Path}", configPath);
+            logger?.CreatingDefaultConfig(configPath);
             await File.WriteAllTextAsync(
                 configPath,
                 JsonSerializer.Serialize(new AppConfig(), AppConfigContext.Default.AppConfig)
