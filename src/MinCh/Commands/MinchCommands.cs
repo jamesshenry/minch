@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,7 +27,7 @@ public class MinchCommands(
     /// Computes the set of changes between two Git references.
     /// </summary>
     /// <param name="from">Explicit baseline (overrides positional baseline)</param>
-    /// <param name="to">Target ref to compare against (default: HEAD)</param>
+    /// <param name="to">Target ref to compare against</param>
     /// <param name="output"> Output format: text | json</param>
     /// <param name="check"></param>
     [Command("")]
@@ -62,7 +61,7 @@ public class MinchCommands(
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"An unexpected error occurred: {ex.Message}");
+            Console.Error.WriteLine($"{ex.Message}");
             Environment.Exit(2);
         }
     }
