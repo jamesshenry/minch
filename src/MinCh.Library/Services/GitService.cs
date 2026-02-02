@@ -187,4 +187,21 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
 
         return result.StandardOutput;
     }
+
+    public async Task<string> GetRepoRootAsync()
+    {
+        try
+        {
+            var output = await RunGitCliWrapAsync($"rev-parse --show-toplevel");
+            if (!File.Exists(output))
+            {
+                throw new FileNotFoundException(output);
+            }
+            return output;
+        }
+        catch
+        {
+            throw;
+        }
+    }
 }

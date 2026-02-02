@@ -2,7 +2,7 @@
     "profiles": {
         "MinCh": {
             "commandName": "Project",
-            "commandLineArgs": "",
+            "commandLineArgs": "generate --version 0.2.0",
             "workingDirectory": ""
         }
     }

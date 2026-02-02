@@ -136,33 +136,45 @@ MinCh generates CHANGELOG.md in strict KeepAChangelog format:
 
 ## Workflow Example
 
-Typical release workflow:
+Typical release workflow with branch protection:
 
-1. Feature branches are merged to `main` (via PR/MR)
-2. Switch to `main` and pull the latest:
+1. Create a release branch:
+
+   ```shell
+   git switch -c feature/release-0.2.0
+   ```
+
+2. Work is done, committed, and ready for release
+
+3. Generate the changelog:
+
+   ```shell
+   minch generate --version 0.2.0
+   ```
+
+4. Commit the changelog on your release branch:
+
+   ```shell
+   git add CHANGELOG.md
+   git commit -m "docs: changelog for 0.2.0"
+   ```
+
+5. Create a PR into `main`, get code reviewed and tested
+
+6. Once approved, merge the PR (changelog is now on `main`)
+
+7. Switch to `main` and pull:
 
    ```shell
    git switch main
    git pull
    ```
 
-3. Tag the current commit:
+8. Tag the merge commit:
 
    ```shell
    git tag v0.2.0
-   ```
-
-4. Generate the changelog:
-
-   ```shell
-   minch generate --version 0.2.0
-   ```
-
-5. Review CHANGELOG.md, commit if needed:
-
-   ```shell
-   git add CHANGELOG.md
-   git commit -m "docs: changelog for 0.2.0"
+   git push origin v0.2.0
    ```
 
 If you make a mistake and want to regenerate, discard and retry:

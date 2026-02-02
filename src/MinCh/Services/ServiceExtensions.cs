@@ -53,6 +53,7 @@ public static class ServiceExtensions
         services.AddSingleton<IGitService, GitService>();
         services.AddSingleton<RendererFactory>();
         services.AddTransient<IChangeSetBuilder, ChangeSetBuilder>();
+        services.AddTransient<IChangelogGenerator, KeepAChangelogGenerator>();
         services.AddSingleton<MinchCommands>();
 
         return services;
