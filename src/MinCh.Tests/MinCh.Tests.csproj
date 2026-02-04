@@ -14,4 +14,8 @@
     <ProjectReference Include="../MinCh/MinCh.csproj" />
     <ProjectReference Include="../MinCh.Library/MinCh.Library.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\*.bundle" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

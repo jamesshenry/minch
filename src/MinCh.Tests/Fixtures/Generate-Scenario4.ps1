@@ -5,7 +5,7 @@
 # All of this happens while Development has a breaking change sitting in it.
 
 # Create a temp directory to build the history
-$BundleName = 'scenario-4-enterprise-crisis.bundle'
+$BundleName = 'scenario-4.bundle'
 $OutputPath = Join-Path $PSScriptRoot $BundleName
 
 # 1. Create a clean temporary workspace

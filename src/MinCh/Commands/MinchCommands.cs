@@ -92,7 +92,7 @@ public class MinchCommands(
             var root = await git.GetRepoRootAsync();
 
             var changelogFile = Path.Combine(root, "CHANGELOG.md");
-            await generator.GenerateAsync(changeSet, versio`n, changelogFile);
+            await generator.GenerateAsync(changeSet, version, changelogFile);
         }
         catch
         {
@@ -112,13 +112,14 @@ public interface IChangelogGenerator
     Task GenerateAsync(ChangeSet changeSet, string version, string output);
 }
 
-public class KeepAChangelogGenerator(RendererFactory factory) : IChangelogGenerator
+public class ChangelogGenerator(RendererFactory factory) : IChangelogGenerator
 {
     private readonly RendererFactory _factory = factory; // Reuse for KeepAChangelog rendering
 
-    public async Task GenerateAsync(ChangeSet change`Set, string version, string outputPath)
+    public async Task GenerateAsync(ChangeSet changeSet, string version, string outputPath)
     {
-        var rendered = _factory.GetRenderer("keepachangelog").Render(changeSet);
+        var renderer = _factory.GetRenderer("markdown");
+        var rendered = renderer.Render(changeSet);
 
         // Now the tricky part: merge with existing file
         var existing = File.Exists(outputPath) ? File.ReadAllText(outputPath) : null;

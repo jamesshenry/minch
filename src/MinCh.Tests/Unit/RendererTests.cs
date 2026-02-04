@@ -136,7 +136,6 @@ public class RendererTests
         await Assert.That(output).Contains("v1.0.0");
         await Assert.That(output).Contains("v2.0.0");
         await Assert.That(output).Contains("Add feature X");
-        // Basic validation that it's JSON-like (not comprehensive)
         await Assert.That(output).Contains("{");
         await Assert.That(output).Contains("}");
     }

@@ -6,7 +6,7 @@
 
 
 # --- Configuration ---
-$BundleName = 'scenario-1-smb-stable.bundle'
+$BundleName = 'scenario-1.bundle'
 $OutputPath = Join-Path $PSScriptRoot $BundleName
 
 # 1. Create a clean temporary workspace

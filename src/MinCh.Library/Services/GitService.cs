@@ -13,9 +13,6 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
     private readonly ILogger<GitService> _logger = logger;
     private readonly string _gitExecutablePath = gitExecutablePath;
 
-    /// <summary>
-    /// Sets the working directory for git operations. Used primarily for testing.
-    /// </summary>
     public void SetWorkingDirectory(string path)
     {
         if (!Directory.Exists(path))
@@ -25,54 +22,64 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
 
     public async Task<Ref> ResolveRefAsync(string refName)
     {
-        // Try to resolve as a tag first
-        var tagSha = await GetRefShaAsync($"refs/tags/{refName}");
-        if (tagSha != null)
-            return new Ref
-            {
-                Name = refName,
-                Kind = GitRefKind.Tag,
-                CommitSha = tagSha,
-            };
-
-        // Try as a branch
-        var branchSha = await GetRefShaAsync($"refs/heads/{refName}");
-        if (branchSha != null)
-            return new Ref
-            {
-                Name = refName,
-                Kind = GitRefKind.Branch,
-                CommitSha = branchSha,
-            };
-
-        // Try as special ref (HEAD)
-        if (refName == "HEAD")
+        var searchPatterns = new (string Path, GitRefKind Kind)[]
         {
-            var headSha = await GetRefShaAsync("HEAD");
-            if (headSha != null)
-                return new Ref
-                {
-                    Name = "HEAD",
-                    Kind = GitRefKind.Special,
-                    CommitSha = headSha,
-                };
-        }
+            ($"refs/tags/{refName}", GitRefKind.Tag),
+            ($"refs/heads/{refName}", GitRefKind.Branch),
+            ($"refs/remotes/{refName}", GitRefKind.Branch),
+            ($"refs/remotes/origin/{refName}", GitRefKind.Branch),
+        };
 
-        // Try as commit SHA (abbreviated or full)
-        if (IsValidCommitSha(refName))
+        foreach (var pattern in searchPatterns)
         {
-            var fullSha = await GetFullCommitShaAsync(refName);
-            if (fullSha != null)
+            var sha = await GetRefShaAsync($"{pattern.Path}^{{commit}}");
+
+            if (sha != null)
+            {
                 return new Ref
                 {
                     Name = refName,
-                    Kind = GitRefKind.Commit,
-                    CommitSha = fullSha,
+                    Kind = pattern.Kind,
+                    CommitSha = sha,
                 };
+            }
+        }
+        // Try raw refName first (handles special syntax like HEAD~10, commit@{1}, etc.)
+        // If that fails, try without the ^{commit} suffix for special syntax
+        var rawSha = await GetRefShaAsync($"{refName}^{{commit}}") ?? await GetRefShaAsync(refName);
+        if (rawSha != null)
+        {
+            return ResolveRawRef(refName, rawSha);
         }
 
-        throw new InvalidOperationException($"Unable to resolve ref: {refName}");
+        // Don't try search patterns for special syntax (contains ~, @, ^, etc.)
+        if (refName.Any(c => c is '~' or '@' or '^' or ':'))
+        {
+            throw new InvalidOperationException(
+                $"'{refName}' is not a valid git reference. It may reference a commit that doesn't exist in your history."
+            );
+        }
+        throw new InvalidOperationException(
+            $"'{refName}' is not a valid git reference. Try running 'git fetch --all'."
+        );
     }
+
+    private static Ref ResolveRawRef(string name, string sha) =>
+        name.ToUpperInvariant() switch
+        {
+            "HEAD" => new Ref
+            {
+                Name = "HEAD",
+                Kind = GitRefKind.Special,
+                CommitSha = sha,
+            },
+            _ => new Ref
+            {
+                Name = name,
+                Kind = GitRefKind.Commit,
+                CommitSha = sha,
+            },
+        };
 
     public async Task<bool> IsDirtyAsync()
     {
@@ -84,7 +91,6 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
     {
         try
         {
-            // --abbrev=0 returns just the tag name without commit distance
             var output = await RunGitCliWrapAsync("describe --tags --abbrev=0");
             return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
         }
@@ -97,30 +103,37 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
     public async Task<IReadOnlyList<Commit>> GetCommitsAsync(Ref fromRef, Ref toRef)
     {
         var range = $"{fromRef.CommitSha}..{toRef.CommitSha}";
-        var output = await RunGitCliWrapAsync($"log --format=%H%n%an%n%ai%n%s {range}");
+        var output = await RunGitCliWrapAsync(
+            $"log --format=%H%x1f%P%x1f%an%x1f%ai%x1f%B%x1e {range}"
+        );
 
         if (string.IsNullOrWhiteSpace(output))
             return [];
 
         var commits = new List<Commit>();
-        var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var entries = output.Split(
+            ['\u001e'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
 
-        for (int i = 0; i < lines.Length; i += 4)
+        foreach (var commitEntry in entries)
         {
-            if (i + 3 < lines.Length)
+            var commitLines = commitEntry.Split(['\u001f']);
+
+            if (DateTime.TryParse(commitLines[3].Trim(), out var date))
             {
-                if (DateTime.TryParse(lines[i + 2].Trim(), out var date))
-                {
-                    commits.Add(
-                        new Commit
-                        {
-                            Sha = lines[i].Trim(),
-                            Author = lines[i + 1].Trim(),
-                            Date = date,
-                            Subject = lines[i + 3].Trim(),
-                        }
-                    );
-                }
+                commits.Add(
+                    new Commit
+                    {
+                        Sha = commitLines[0],
+                        IsMerge = commitLines[1].Contains(' '),
+                        IsBreaking =
+                            commitLines[4].Contains("BREAKING") || commitLines[4].Contains("!:"),
+                        Author = commitLines[2],
+                        Date = date,
+                        Subject = commitLines[4],
+                    }
+                );
             }
         }
 
@@ -155,23 +168,9 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
         }
     }
 
-    private async Task<string?> GetFullCommitShaAsync(string sha)
-    {
-        try
-        {
-            var output = await RunGitCliWrapAsync($"rev-parse {sha}^{{commit}}");
-            return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private bool IsValidCommitSha(string sha)
     {
-        // Check if it looks like a git SHA (hex string, at least 7 chars)
-        return sha.Length >= 7 && sha.All(c => "0123456789abcdefABCDEF".Contains(c));
+        return sha.Length >= 7 && sha.All(c => char.IsAsciiHexDigit(c));
     }
 
     private async Task<string> RunGitCliWrapAsync(string arguments)
@@ -185,23 +184,13 @@ public partial class GitService(ILogger<GitService> logger, string gitExecutable
         if (result.ExitCode != 0)
             throw new InvalidOperationException($"Git command failed: {result.StandardError}");
 
-        return result.StandardOutput;
+        return result.StandardOutput.Trim();
     }
 
     public async Task<string> GetRepoRootAsync()
     {
-        try
-        {
-            var output = await RunGitCliWrapAsync($"rev-parse --show-toplevel");
-            if (!File.Exists(output))
-            {
-                throw new FileNotFoundException(output);
-            }
-            return output;
-        }
-        catch
-        {
-            throw;
-        }
+        var output = await RunGitCliWrapAsync($"rev-parse --show-toplevel");
+
+        return output;
     }
 }

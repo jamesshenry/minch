@@ -1,20 +1,20 @@
-# Polluted Develop: Both feat: pdf-export and feat: ai-engine are merged.
-# The Release Branch (Stabilization): We cut release/v2.1.0.
-# The "Kill Switch" Commit: A fix: commit is added to the release branch to disable the unstable AI code (Feature Toggle).
-# RC Loop: Testing the "Disabled" state.
-# Clean Changelog: How Conventional Commits handle the "hidden" feature.
+# Scenario 3: Stabilization via Revert
+# ---------------------------------------------------------
+# 1. feat: pdf-export and feat: ai-engine are merged into develop.
+# 2. release/v2.1.0 is cut.
+# 3. Decision: AI is too unstable for v2.1.
+# 4. ACTION: 'git revert' is used on the release branch.
+# 5. CLI Handling: CLI ignores 'revert' + original 'feat' for a clean log.
+# 6. Sync: The revert is merged back to develop (requiring a 'revert-of-revert' later).
 
-# --- Configuration ---
-$BundleName = 'scenario-3-selective-release.bundle'
+$BundleName = 'scenario-3.bundle'
 $OutputPath = Join-Path $PSScriptRoot $BundleName
 
-# 1. Create a clean temporary workspace
 $BuildPath = Join-Path $env:TEMP "git-build-$(New-Guid)"
 New-Item -ItemType Directory -Path $BuildPath | Out-Null
 Push-Location $BuildPath
 
 try {
-    # 2. Initialize Repository
     git init -b main
     git config user.name 'QA Automation'
     git config user.email 'qa@example.com'
@@ -24,7 +24,6 @@ try {
     git add .
     git commit -m 'chore: start v2.1 cycle'
 
-    # --- Setup Develop Branch ---
     git checkout -b develop
 
     # --- Feature 1: PDF Export (Stable) ---
@@ -46,14 +45,13 @@ try {
     git merge --no-ff feat/ai -m 'chore: merge ai'
 
     # --- Create Release Branch ---
-    # At this point develop contains both PDF and AI
     git checkout -b release/v2.1.0
 
-    # --- The Kill Switch ---
-    # A fix specifically for the release branch to hide unstable features
-    'EnableAI = false' > config.ini
-    git add .
-    git commit -m 'fix: disable ai-ui for v2.1 stable'
+    # --- THE REVERT (The "Standard" Way) ---
+    # We revert the AI feature specifically on this branch.
+    # We find the commit hash of the AI feature to revert it.
+    $AiHash = git rev-parse HEAD^2 # Reverts the second parent of the last merge (the ai branch)
+    git revert $AiHash --no-edit   # Creates "revert: feat: ai integration"
 
     # --- Tagging Release Candidate ---
     git tag v2.1.0-rc.1
@@ -64,20 +62,17 @@ try {
     git tag v2.1.0
 
     # --- Sync Back to Develop ---
+    # WARNING: This removes the AI code from develop! 
+    # AI devs will need to 'revert the revert' to continue.
     git checkout develop
     git merge --no-ff release/v2.1.0 -m 'chore: sync release fixes'
 
-    # 3. Create the Bundle
+    # Create the Bundle
     if (Test-Path $OutputPath) { Remove-Item $OutputPath }
     git bundle create $OutputPath --all
 
     Write-Host "`nSuccess: Bundle generated at $OutputPath" -ForegroundColor Green
+    Write-Host "Changelog Logic: Your CLI should now see both the 'feat' and 'revert' and can omit both." -ForegroundColor Cyan
 }
-catch {
-    Write-Error "An error occurred: $_"
-}
-finally {
-    # 4. Cleanup
-    Pop-Location
-    Remove-Item -Recurse -Force $BuildPath
-}
+catch { Write-Error "An error occurred: $_" }
+finally { Pop-Location; Remove-Item -Recurse -Force $BuildPath }

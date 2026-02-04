@@ -9,6 +9,7 @@ public record Ref
 
 public enum GitRefKind
 {
+    Unspecified,
     Tag,
     Branch,
     Commit,

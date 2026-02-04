@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MinCh.Commands;
 using MinCh.Library.Git;
 using MinCh.Library.Services;
 
@@ -12,7 +13,7 @@ public class RendererFactory
         {
             "json" => new JsonRenderer(),
             "text" => new TextRenderer(),
-            // future formats: "markdown" => new MarkdownRenderer(),
+            "markdown" => new MarkdownRenderer(),
             _ => throw new ArgumentException($"Unknown output format: {format}"),
         };
     }
@@ -35,5 +36,15 @@ internal class JsonRenderer : IChangeSetRenderer
     public string Render(ChangeSet changeSet)
     {
         return JsonSerializer.Serialize(changeSet, ChangeSetContext.Default.ChangeSet);
+    }
+}
+
+internal class MarkdownRenderer : IChangeSetRenderer
+{
+    public string Style => "CommonChangelog";
+
+    public string Render(ChangeSet changeSet)
+    {
+        return "";
     }
 }
