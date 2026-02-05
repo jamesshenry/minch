@@ -12,3 +12,21 @@ public interface IGitService
     Task<Ref> ResolveRefAsync(string refName);
     void SetWorkingDirectory(string path);
 }
+
+public interface IChangelogGenerator
+{
+    Task<Changelog> GenerateAsync(ChangeSet changeSet, string version);
+}
+
+public class ChangelogGenerator(RendererFactory factory) : IChangelogGenerator
+{
+    private readonly RendererFactory _factory = factory; // Reuse for KeepAChangelog rendering
+
+    public async Task<Changelog> GenerateAsync(ChangeSet changeSet, string version)
+    {
+        var renderer = _factory.GetRenderer("markdown");
+        var rendered = renderer.Render(changeSet);
+
+        return rendered;
+    }
+}
