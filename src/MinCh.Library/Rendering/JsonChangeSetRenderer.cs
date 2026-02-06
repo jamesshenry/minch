@@ -1,7 +1,16 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using MinCh.Library.Git;
 
-namespace MinCh.Services;
+namespace MinCh.Library.Rendering;
+
+public class JsonChangeSetRenderer : IChangeSetRenderer
+{
+    public string Render(ChangeSet changeSet)
+    {
+        return JsonSerializer.Serialize(changeSet, ChangeSetContext.Default.ChangeSet);
+    }
+}
 
 [JsonSourceGenerationOptions(
     WriteIndented = true,

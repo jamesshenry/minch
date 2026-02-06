@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MinCh.Commands;
 using MinCh.Configuration;
+using MinCh.Library.Rendering;
 using MinCh.Library.Services;
 using MinCh.Logging;
 using Serilog;
@@ -51,9 +52,9 @@ public static class ServiceExtensions
         services.AddSingleton(ConsoleLevelSwitch);
         services.AddSingleton(configuration);
         services.AddSingleton<IGitService, GitService>();
-        services.AddSingleton<RendererFactory>();
+        services.AddSingleton<ChangeSetRendererFactory>();
         services.AddTransient<IChangeSetBuilder, ChangeSetBuilder>();
-        services.AddTransient<IChangelogGenerator, ChangelogGenerator>();
+        services.AddTransient<IChangelogGenerator, CommonChangelogGenerator>();
         services.AddSingleton<MinchCommands>();
 
         return services;

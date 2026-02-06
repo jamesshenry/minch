@@ -1,20 +1,16 @@
 using MinCh.Library.Git;
-using MinCh.Services;
+using MinCh.Library.Rendering;
 
 namespace MinCh.Tests;
 
-/// <summary>
-/// Tests for IChangeSetRenderer implementations (Text, JSON)
-/// Covers: text output, JSON output, empty changeset, dirty state
-/// </summary>
 public class RendererTests
 {
-    private RendererFactory _rendererFactory = null!;
+    private ChangeSetRendererFactory _rendererFactory = null!;
 
     [Before(Test)]
     public void SetUp()
     {
-        _rendererFactory = new RendererFactory();
+        _rendererFactory = new ChangeSetRendererFactory();
     }
 
     private static ChangeSet CreatePopulatedChangeSet()
@@ -35,8 +31,8 @@ public class RendererTests
             },
             IsDirty = false,
             CommitCount = 2,
-            Commits = new[]
-            {
+            Commits =
+            [
                 new Commit
                 {
                     Sha = "aaa111",
@@ -51,8 +47,8 @@ public class RendererTests
                     Date = new DateTime(2024, 1, 2),
                     Subject = "Fix bug Y",
                 },
-            },
-            Files = new[] { "src/feature.cs", "tests/feature.tests.cs" },
+            ],
+            Files = ["src/feature.cs", "tests/feature.tests.cs"],
         };
     }
 
@@ -97,8 +93,8 @@ public class RendererTests
             },
             IsDirty = true,
             CommitCount = 1,
-            Commits = new[]
-            {
+            Commits =
+            [
                 new Commit
                 {
                     Sha = "ccc333",
@@ -106,15 +102,15 @@ public class RendererTests
                     Date = new DateTime(2024, 1, 15),
                     Subject = "WIP: ongoing changes",
                 },
-            },
-            Files = new[] { "src/working.cs" },
+            ],
+            Files = ["src/working.cs"],
         };
     }
 
     [Test]
     public async Task TextRenderer_PopulatedChangeSet_OutputsCommitsAndFiles()
     {
-        var renderer = _rendererFactory.GetRenderer("text");
+        var renderer = _rendererFactory.Get("text");
         var changeSet = CreatePopulatedChangeSet();
 
         var output = renderer.Render(changeSet);
@@ -128,7 +124,7 @@ public class RendererTests
     [Test]
     public async Task JsonRenderer_PopulatedChangeSet_OutputsValidJson()
     {
-        var renderer = _rendererFactory.GetRenderer("json");
+        var renderer = _rendererFactory.Get("json");
         var changeSet = CreatePopulatedChangeSet();
 
         var output = renderer.Render(changeSet);
@@ -143,7 +139,7 @@ public class RendererTests
     [Test]
     public async Task TextRenderer_EmptyChangeSet_OutputsNoChangesMessage()
     {
-        var renderer = _rendererFactory.GetRenderer("text");
+        var renderer = _rendererFactory.Get("text");
         var changeSet = CreateEmptyChangeSet();
 
         var output = renderer.Render(changeSet);
@@ -156,7 +152,7 @@ public class RendererTests
     [Test]
     public async Task JsonRenderer_EmptyChangeSet_OutputsEmptyArrays()
     {
-        var renderer = _rendererFactory.GetRenderer("json");
+        var renderer = _rendererFactory.Get("json");
         var changeSet = CreateEmptyChangeSet();
 
         var output = renderer.Render(changeSet);
@@ -170,7 +166,7 @@ public class RendererTests
     [Test]
     public async Task TextRenderer_DirtyChangeSet_IndicatesDirtyState()
     {
-        var renderer = _rendererFactory.GetRenderer("text");
+        var renderer = _rendererFactory.Get("text");
         var changeSet = CreateDirtyChangeSet();
 
         var output = renderer.Render(changeSet);
@@ -184,9 +180,7 @@ public class RendererTests
     [Test]
     public async Task RendererFactory_UnknownFormat_ThrowsArgumentException()
     {
-        await Assert
-            .That(() => _rendererFactory.GetRenderer("unknown"))
-            .Throws<ArgumentException>();
+        await Assert.That(() => _rendererFactory.Get("unknown")).Throws<ArgumentException>();
     }
 
     [Test]
@@ -196,7 +190,7 @@ public class RendererTests
     [Arguments("JSON")]
     public async Task RendererFactory_CaseInsensitive_ReturnsCorrectRenderer(string format)
     {
-        var renderer = _rendererFactory.GetRenderer(format);
+        var renderer = _rendererFactory.Get(format);
 
         await Assert.That(renderer).IsNotNull();
     }

@@ -1,12 +1,10 @@
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualBasic;
 using MinCh.Configuration;
 using MinCh.Infrastructure;
-using MinCh.Library.Git;
+using MinCh.Library.Rendering;
 using MinCh.Library.Services;
-using MinCh.Services;
 using Spectre.Console;
 using Spectre.Console.Json;
 
@@ -16,14 +14,12 @@ namespace MinCh.Commands;
 public class MinchCommands(
     IChangeSetBuilder builder,
     ILogger<MinchCommands> logger,
-    IOptions<AppConfig> options,
-    RendererFactory factory
+    IOptions<AppConfig> options
 )
 {
     private readonly AppConfig _config = options.Value;
     private readonly IChangeSetBuilder _builder = builder;
     private readonly ILogger<MinchCommands> _logger = logger;
-    private readonly RendererFactory _factory = factory;
 
     /// <summary>
     /// Computes the set of changes between two Git references.
@@ -34,6 +30,7 @@ public class MinchCommands(
     /// <param name="check"></param>
     [Command("")]
     public async Task Root(
+        [FromServices] ChangeSetRendererFactory factory,
         string from = "last-tag",
         string to = "HEAD",
         string format = "text",
@@ -44,9 +41,9 @@ public class MinchCommands(
         {
             var changeSet = await _builder.BuildAsync(from, to, check == CheckMode.Dirty);
 
-            var renderer = _factory.GetRenderer(format);
+            var renderer = factory.Get(format);
             var rendered = renderer.Render(changeSet);
-            if (renderer is JsonRenderer)
+            if (renderer is JsonChangeSetRenderer)
             {
                 var jsonText = new JsonText(rendered);
                 AnsiConsole.Write(jsonText);
@@ -77,28 +74,20 @@ public class MinchCommands(
     [Command("generate")]
     public async Task Generate(
         [FromServices] IChangelogGenerator generator,
+        [FromServices] ChangelogRendererFactory factory,
         [FromServices] IGitService git,
         string version,
-        string from = "last-tag",
-        string to = "HEAD",
         CheckMode check = CheckMode.Dirty,
         string? output = null
     )
     {
-        try
-        {
-            var changeSet = await _builder.BuildAsync(from, to, check == CheckMode.Dirty);
+        var changeSet = await _builder.BuildAsync("last-tag", "HEAD", check == CheckMode.Dirty);
+        var changelog = await generator.GenerateAsync(changeSet, version);
 
-            var root = await git.GetRepoRootAsync();
+        var renderer = factory.Get("markdown");
+        string section = renderer.Render(changelog);
 
-            var changelog = await generator.GenerateAsync(changeSet, version, changelogFile);
-
-            Console.WriteLine(changelog);
-        }
-        catch
-        {
-            throw;
-        }
+        Console.WriteLine(section);
     }
 }
 

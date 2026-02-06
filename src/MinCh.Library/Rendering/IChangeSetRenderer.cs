@@ -1,7 +1,6 @@
-using MinCh.Library;
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Rendering;
 
 public interface IChangeSetRenderer
 {
