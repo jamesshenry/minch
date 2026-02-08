@@ -1,7 +1,3 @@
-This `agents.md` is optimized for Large Language Models (LLMs) and AI Agents. It focuses on syntax patterns, configuration requirements, and the unique architectural rules of TUnit.
-
----
-
 # TUnit: Agent Development Guide
 
 TUnit is a modern, source-generated C# testing framework built on the `Microsoft.Testing.Platform`. It supports Native AOT, Single File applications, and is parallel-by-default.
@@ -31,7 +27,7 @@ Tests are defined by the `[Test]` attribute. Methods should generally be `async 
 
 ### The "Must-Await" Rule
 
-**Critical:** Assertions **must** be awaited. TUnit uses an analyzer to enforce this. Failure to await means the assertion is never executed.
+**Critical:** Assertions **must** be awaited. TUnit uses an analyser to enforce this. Failure to await means the assertion is never executed.
 
 ```csharp
 [Test]
@@ -40,6 +36,21 @@ public async Task BasicTest()
     var result = 1 + 1;
     await Assert.That(result).IsEqualTo(2);
 }
+```
+
+## C# Collection Initialization
+
+Agents should use simplified collection initialization syntax (`[a, b, c...]`) instead of `new List<T>` or `new Dictionary<T>` for better readability and conciseness.
+
+```csharp
+// Preferred for List
+List<int> list = [1, 2, 3];
+
+// Preferred for Dictionary (C# 12 and later)
+Dictionary<string, int> dictionary = new() { ["a"] = 1, ["b"] = 2 };
+
+// Allowed (if necessary)
+int[] array = [1, 2, 3];
 ```
 
 ## 3. Test Lifecycle and Isolation
@@ -144,3 +155,45 @@ Use `--treenode-filter` for granular selection:
 
 ---
 **Agent Warning:** Always check for `required` properties when using `Property Injection`. If a test class has `required` properties, they must be satisfied by a data attribute or `ClassDataSource`.
+
+## 11. Building the Project
+
+The project uses a `build.ps1` PowerShell script to orchestrate various build tasks via `dotnet run .build/targets.cs`.
+
+### Available Targets
+
+  ```pwsh
+# - `clean`: Cleans the solution.
+  ./build.ps1 clean
+
+# - `restore`: Restores NuGet packages.
+  ./build.ps1 restore
+
+# - `build`: Builds the solution (depends on `restore`). This is the default target.
+  ./build.ps1 build
+# Or simply:
+  ./build.ps1
+
+# - `test`: Runs unit tests (depends on `build`).
+  ./build.ps1 test
+
+# - `coverage`: Generates code coverage reports (depends on `test`).
+  ./build.ps1 coverage
+
+# - `publish`: Publishes the application for a specific runtime identifier (RID). Requires `--rid` option.
+  ./build.ps1 publish --rid <RID>
+
+# - `pack`: Creates NuGet packages for a specific runtime identifier (RID). Requires `--rid` option.
+  ./build.ps1 pack --rid <RID>
+
+# - `release`: Creates a release package using Velopack (depends on `publish`). Requires `--rid` and `--version` options.
+  ./build.ps1 release --rid <RID> --version <VERSION>
+  ```
+
+### Example Usage
+
+To build and run tests:
+
+```pwsh
+./build.ps1 build test
+```

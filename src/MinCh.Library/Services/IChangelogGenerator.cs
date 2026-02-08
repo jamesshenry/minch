@@ -1,27 +1,24 @@
+using MinCh.Library.Changelog;
 using MinCh.Library.Git;
 
 namespace MinCh.Library.Services;
 
 public interface IChangelogGenerator
 {
-    Task<Changelog> GenerateAsync(ChangeSet changeSet, string version);
+    Task<ChangelogRecord> Generate(ChangeSet changeSet, string version);
 }
 
 public class CommonChangelogGenerator(TimeProvider time) : IChangelogGenerator
 {
     private readonly TimeProvider _time = time;
 
-    public async Task<Changelog> GenerateAsync(ChangeSet changeSet, string version)
+    public Task<ChangelogRecord> Generate(ChangeSet changeSet, string version)
     {
-        var sections = ChangeSetParser.Parse(changeSet);
-        return new Changelog(version, DateOnly.FromDateTime(_time.GetUtcNow().DateTime), sections);
-    }
-}
+        var now = _time.GetUtcNow();
+        var groups = ChangeSetParser.Parse(changeSet);
 
-public static class ChangeSetParser
-{
-    public static IReadOnlyList<ChangeGroup> Parse(ChangeSet changeSet)
-    {
-        throw new NotImplementedException();
+        return Task.FromResult(
+            new ChangelogRecord(version, ChangelogDate.On(now.Year, now.Month, now.Day), groups)
+        );
     }
 }

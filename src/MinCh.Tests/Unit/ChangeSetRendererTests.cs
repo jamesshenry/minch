@@ -3,7 +3,7 @@ using MinCh.Library.Rendering;
 
 namespace MinCh.Tests;
 
-public class RendererTests
+public class ChangeSetRendererTests
 {
     private ChangeSetRendererFactory _rendererFactory = null!;
 

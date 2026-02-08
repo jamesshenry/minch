@@ -1,4 +1,4 @@
-namespace MinCh.Library.Rendering;
+namespace MinCh.Library.Changelog;
 
 public class ChangelogRendererFactory
 {
@@ -9,18 +9,5 @@ public class ChangelogRendererFactory
             "commonchangelog" => new CommonChangelogRenderer(),
             _ => throw new ArgumentException($"Unknown output format: {format}"),
         };
-    }
-}
-
-public interface IChangelogRenderer
-{
-    string Render(Changelog changelog);
-}
-
-internal class CommonChangelogRenderer : IChangelogRenderer
-{
-    public string Render(Changelog changelog)
-    {
-        throw new NotImplementedException();
     }
 }
