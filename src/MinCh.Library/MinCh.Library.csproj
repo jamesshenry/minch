@@ -10,6 +10,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="NetEscapades.EnumGenerators" Version="1.0.0-beta20" />
     <PackageReference Include="Vogen" Version="8.0.4" />
   </ItemGroup>
 </Project>

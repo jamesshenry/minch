@@ -1,8 +1,9 @@
+using MinCh.Library.Git;
 using Vogen;
 
 namespace MinCh.Library.Changelog;
 
-public record ReleaseRecord(string Version, ReleaseDate Date, IReadOnlyList<ChangeGroup> Groups);
+public record Release(string Version, ReleaseDate Date, IReadOnlyList<ParsedCommit> Commits);
 
 [ValueObject<DateOnly>]
 public readonly partial struct ReleaseDate

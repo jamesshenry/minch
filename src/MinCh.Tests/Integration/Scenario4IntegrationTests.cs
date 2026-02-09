@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MinCh.Library.Git;
-using MinCh.Library.Git;
 
 namespace MinCh.Tests.Integration;
 

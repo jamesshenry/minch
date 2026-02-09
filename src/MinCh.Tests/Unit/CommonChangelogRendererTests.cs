@@ -1,4 +1,5 @@
 using MinCh.Library.Changelog;
+using MinCh.Library.Git;
 
 namespace MinCh.Library.Tests.Rendering;
 
@@ -15,7 +16,7 @@ public class CommonChangelogRendererTests
     public async Task Render_ShouldGenerateMarkdownForEmptyChangelog()
     {
         // Arrange
-        var changelog = new ReleaseRecord("1.0.0", ReleaseDate.On(2026, 2, 6), []);
+        var changelog = new Release("1.0.0", ReleaseDate.On(2026, 2, 6), []);
 
         // Act
         var output = _renderer.Render(changelog);
@@ -28,14 +29,22 @@ public class CommonChangelogRendererTests
     public async Task Render_ShouldGenerateMarkdownForChangelogWithGroupsAndItems()
     {
         // Arrange
-        var changeItem1 = new ChangeItem("feat: Initial commit", null);
-        var changeItem2 = new ChangeItem("fix: Bugfix for login", null);
-        var changeGroup1 = new ChangeGroup("Features", [changeItem1]);
-        var changeGroup2 = new ChangeGroup("Bug Fixes", [changeItem2]);
-        var changelog = new ReleaseRecord(
+        var changeItem1 = new ParsedCommit()
+        {
+            Description = "Initial commit",
+            Type = ConventionalCommitType.Feat,
+            IsBreaking = false,
+        };
+        var changeItem2 = new ParsedCommit()
+        {
+            Description = "Bugfix for login",
+            Type = ConventionalCommitType.Fix,
+            IsBreaking = false,
+        };
+        var changelog = new Release(
             "1.0.0",
             ReleaseDate.On(2026, 2, 6),
-            [changeGroup1, changeGroup2]
+            [changeItem1, changeItem2]
         );
 
         const string expectedOutput = """

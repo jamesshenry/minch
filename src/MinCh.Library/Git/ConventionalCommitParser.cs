@@ -1,74 +1,64 @@
 using System.Text.RegularExpressions;
 using MinCh.Library.Changelog;
-using MinCh.Library.Git;
 
 namespace MinCh.Library.Git;
 
+public class ParsedCommit
+{
+    public required string Description { get; init; }
+    public string? Scope { get; init; }
+    public required ConventionalCommitType Type { get; init; }
+    public required bool IsBreaking { get; init; }
+}
+
 public static class ConventionalCommitParser
 {
-    public static IReadOnlyList<ChangeGroup> Parse(ChangeSet changeSet)
+    public static IReadOnlyList<ParsedCommit> Parse(ChangeSet changeSet)
     {
-        List<ChangeItem> breakingChanges = [];
-        List<ChangeItem> featureItems = [];
-        List<ChangeItem> fixItems = [];
-        List<ChangeItem> choreItems = [];
+        var parsedCommits = new List<ParsedCommit>();
 
         foreach (var commit in changeSet.Commits)
         {
-            if (commit.IsBreaking)
-            {
-                breakingChanges.Add(new ChangeItem(commit.Subject, null));
-            }
-
             var match = Regex.Match(
                 commit.Subject,
                 @"^(?<type>\w+)(\((?<scope>.+)\))?:\s*(?<description>.+)$"
             );
-            if (match.Success)
-            {
-                var type = match.Groups["type"].Value.ToLowerInvariant();
-                var scope = match.Groups["scope"].Value;
-                var description = match.Groups["description"].Value;
 
-                var item = new ChangeItem(description, string.IsNullOrEmpty(scope) ? null : scope);
+            if (!match.Success)
+                continue;
 
-                switch (type)
+            if (
+                !Enum.TryParse<ConventionalCommitType>(
+                    match.Groups["type"].Value,
+                    true,
+                    out var type
+                )
+            )
+                continue;
+
+            var scope = match.Groups["scope"].Value;
+            var description = match.Groups["description"].Value;
+
+            parsedCommits.Add(
+                new ParsedCommit
                 {
-                    case "feat":
-                        featureItems.Add(item);
-                        break;
-                    case "fix":
-                        fixItems.Add(item);
-                        break;
-                    case "chore":
-                        choreItems.Add(item);
-                        break;
+                    Description = description,
+                    Scope = string.IsNullOrEmpty(scope) ? null : scope,
+                    Type = type,
+                    IsBreaking = commit.IsBreaking,
                 }
-            }
+            );
         }
 
-        var groups = new List<ChangeGroup>();
-
-        if (breakingChanges.Count > 0)
-        {
-            groups.Add(new ChangeGroup("Breaking Changes", breakingChanges));
-        }
-
-        if (featureItems.Count > 0)
-        {
-            groups.Add(new ChangeGroup("Features", featureItems));
-        }
-
-        if (fixItems.Count > 0)
-        {
-            groups.Add(new ChangeGroup("Bug Fixes", fixItems));
-        }
-
-        if (choreItems.Count > 0)
-        {
-            groups.Add(new ChangeGroup("Chores", choreItems));
-        }
-
-        return groups;
+        return parsedCommits;
     }
+}
+
+public enum ConventionalCommitType
+{
+    Fix,
+    Feat,
+    Perf,
+    Chore,
+    Refactor,
 }
