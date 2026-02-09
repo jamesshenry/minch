@@ -4,20 +4,20 @@ namespace MinCh.Library.Changelog;
 
 public interface IChangelogGenerator
 {
-    Task<ChangelogRecord> Generate(ChangeSet changeSet, string version);
+    Task<ReleaseRecord> Generate(ChangeSet changeSet, string version);
 }
 
 public class CommonChangelogGenerator(TimeProvider time) : IChangelogGenerator
 {
     private readonly TimeProvider _time = time;
 
-    public Task<ChangelogRecord> Generate(ChangeSet changeSet, string version)
+    public Task<ReleaseRecord> Generate(ChangeSet changeSet, string version)
     {
         var now = _time.GetUtcNow();
         var groups = ConventionalCommitParser.Parse(changeSet);
 
         return Task.FromResult(
-            new ChangelogRecord(version, ChangelogDate.On(now.Year, now.Month, now.Day), groups)
+            new ReleaseRecord(version, ReleaseDate.On(now.Year, now.Month, now.Day), groups)
         );
     }
 }
