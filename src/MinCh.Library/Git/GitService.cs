@@ -4,7 +4,7 @@ using CliWrap.Buffered;
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Git;
 
 public partial class GitService(ILogger<GitService> logger, string gitExecutablePath = "git")
     : IGitService

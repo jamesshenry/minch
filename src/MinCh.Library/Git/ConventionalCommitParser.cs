@@ -2,9 +2,9 @@ using System.Text.RegularExpressions;
 using MinCh.Library.Changelog;
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Git;
 
-public static class ChangeSetParser
+public static class ConventionalCommitParser
 {
     public static IReadOnlyList<ChangeGroup> Parse(ChangeSet changeSet)
     {

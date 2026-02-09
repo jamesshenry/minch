@@ -4,8 +4,8 @@ using Microsoft.Extensions.Options;
 using MinCh.Configuration;
 using MinCh.Infrastructure;
 using MinCh.Library.Changelog;
+using MinCh.Library.Git;
 using MinCh.Library.Rendering;
-using MinCh.Library.Services;
 using Spectre.Console;
 using Spectre.Console.Json;
 
@@ -85,7 +85,7 @@ public class MinchCommands(
         var changeSet = await _builder.BuildAsync("last-tag", "HEAD", check == CheckMode.Dirty);
         var changelog = await generator.Generate(changeSet, version);
 
-        var renderer = factory.Get("markdown");
+        var renderer = factory.Get("commonchangelog");
         string section = renderer.Render(changelog);
 
         Console.WriteLine(section);

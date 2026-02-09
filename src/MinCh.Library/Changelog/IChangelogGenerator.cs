@@ -1,7 +1,6 @@
-using MinCh.Library.Changelog;
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Changelog;
 
 public interface IChangelogGenerator
 {
@@ -15,7 +14,7 @@ public class CommonChangelogGenerator(TimeProvider time) : IChangelogGenerator
     public Task<ChangelogRecord> Generate(ChangeSet changeSet, string version)
     {
         var now = _time.GetUtcNow();
-        var groups = ChangeSetParser.Parse(changeSet);
+        var groups = ConventionalCommitParser.Parse(changeSet);
 
         return Task.FromResult(
             new ChangelogRecord(version, ChangelogDate.On(now.Year, now.Month, now.Day), groups)

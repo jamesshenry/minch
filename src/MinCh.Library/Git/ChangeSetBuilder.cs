@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Git;
 
 public interface IChangeSetBuilder
 {
@@ -20,6 +20,11 @@ public class ChangeSetBuilder(IGitService gitService, ILogger<ChangeSetBuilder> 
         bool allowDirty = false
     )
     {
+        bool dirty = await _service.IsDirtyAsync();
+        if (!allowDirty && dirty)
+        {
+            throw new InvalidOperationException("Working tree is dirty");
+        }
         // Handle special "last-tag" keyword
         var fromRefName = from;
         if (from.Equals("last-tag", StringComparison.OrdinalIgnoreCase))
@@ -34,9 +39,6 @@ public class ChangeSetBuilder(IGitService gitService, ILogger<ChangeSetBuilder> 
         _logger.LogDebug($"From ref resolved to: {fromRef}");
         var toRef = await _service.ResolveRefAsync(to);
         _logger.LogDebug($"To ref resolved to: {toRef}");
-        bool dirty = await _service.IsDirtyAsync();
-        if (!allowDirty && dirty)
-            throw new InvalidOperationException("Working tree is dirty");
 
         var commits = await _service.GetCommitsAsync(fromRef, toRef);
         var files = await _service.GetFilesAsync(fromRef, toRef);

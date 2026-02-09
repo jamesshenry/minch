@@ -1,6 +1,6 @@
 using MinCh.Library.Git;
 
-namespace MinCh.Library.Services;
+namespace MinCh.Library.Git;
 
 public interface IGitService
 {

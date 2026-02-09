@@ -1,5 +1,5 @@
 using MinCh.Library.Git;
-using MinCh.Library.Services;
+using MinCh.Library.Git;
 using NSubstitute;
 
 namespace MinCh.Library.Tests.Services;
