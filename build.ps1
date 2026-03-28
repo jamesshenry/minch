@@ -1,1 +1,0 @@
-dotnet run .build/targets.cs -- $args
